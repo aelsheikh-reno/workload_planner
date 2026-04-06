@@ -1,0 +1,78 @@
+{
+  "artifact": {
+    "external_id": "artifact-2026-04-04-baseline",
+    "version": "v1"
+  },
+  "captured_at": "2026-04-04T09:00:00Z",
+  "projects": [
+    {
+      "external_id": "project-apollo",
+      "name": "Apollo Launch",
+      "tasks": [
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Ada Lovelace",
+              "external_id": "user-ada"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-09",
+            "start": "2026-04-07"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 16
+          },
+          "external_id": "task-design",
+          "name": "Design intake contract",
+          "subtasks": [
+            {
+              "assignees": [
+                {
+                  "allocation_percent": 50,
+                  "display_name": "Grace Hopper",
+                  "external_id": "user-grace"
+                }
+              ],
+              "dates": {
+                "due": "2026-04-10",
+                "start": "2026-04-10"
+              },
+              "effort": {
+                "unit": "hours",
+                "value": 8
+              },
+              "external_id": "task-design-review",
+              "name": "Review intake mapping"
+            }
+          ]
+        },
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Lee Chen",
+              "external_id": "user-lee"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-11",
+            "start": "2026-04-07"
+          },
+          "depends_on_external_ids": [
+            "task-design"
+          ],
+          "effort": {
+            "unit": "hours",
+            "value": 24
+          },
+          "external_id": "task-build-model",
+          "name": "Build normalized records"
+        }
+      ]
+    }
+  ],
+  "source_system": "asana"
+}

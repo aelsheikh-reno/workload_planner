@@ -1,0 +1,6 @@
+{
+  "error_code": "planning_engine_unavailable",
+  "error_message": "Planning Engine did not accept the handoff.",
+  "occurred_at": "2026-04-04T12:02:00Z",
+  "retryable": true
+}

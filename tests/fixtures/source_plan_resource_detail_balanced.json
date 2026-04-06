@@ -1,0 +1,74 @@
+{
+  "artifact": {
+    "external_id": "artifact-resource-detail-balanced",
+    "version": "v1"
+  },
+  "captured_at": "2026-04-04T11:20:00Z",
+  "projects": [
+    {
+      "external_id": "project-resource-detail-balanced",
+      "name": "Resource Detail Balanced",
+      "tasks": [
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Taylor Brooks",
+              "external_id": "user-taylor"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-07",
+            "start": "2026-04-06"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 16
+          },
+          "external_id": "task-discovery",
+          "name": "Discovery and framing"
+        },
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Taylor Brooks",
+              "external_id": "user-taylor"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-10",
+            "start": "2026-04-08"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 24
+          },
+          "external_id": "task-rollout",
+          "name": "Rollout and validation"
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "availability": {
+        "fte_ratio": 1.0
+      },
+      "calendar": {
+        "daily_capacity_hours": 8,
+        "name": "Standard Week",
+        "working_days": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ]
+      },
+      "display_name": "Taylor Brooks",
+      "external_id": "user-taylor"
+    }
+  ],
+  "source_system": "asana"
+}

@@ -1,0 +1,6 @@
+{
+  "requested_by": "approver@example.com",
+  "requested_at": "2026-04-06T11:00:00Z",
+  "idempotency_key": "activation::baseline",
+  "max_attempts": 2
+}

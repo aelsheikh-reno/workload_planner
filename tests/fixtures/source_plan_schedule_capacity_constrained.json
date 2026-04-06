@@ -1,0 +1,74 @@
+{
+  "artifact": {
+    "external_id": "artifact-schedule-capacity-constrained",
+    "version": "v1"
+  },
+  "captured_at": "2026-04-04T11:05:00Z",
+  "projects": [
+    {
+      "external_id": "project-schedule-constrained",
+      "name": "Schedule Capacity Constrained",
+      "tasks": [
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Grace Hopper",
+              "external_id": "user-grace"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-10",
+            "start": "2026-04-06"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 16
+          },
+          "external_id": "task-alpha",
+          "name": "Alpha work package"
+        },
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Grace Hopper",
+              "external_id": "user-grace"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-10",
+            "start": "2026-04-06"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 16
+          },
+          "external_id": "task-beta",
+          "name": "Beta work package"
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "availability": {
+        "fte_ratio": 1.0
+      },
+      "calendar": {
+        "daily_capacity_hours": 8,
+        "name": "Standard Week",
+        "working_days": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ]
+      },
+      "display_name": "Grace Hopper",
+      "external_id": "user-grace"
+    }
+  ],
+  "source_system": "asana"
+}

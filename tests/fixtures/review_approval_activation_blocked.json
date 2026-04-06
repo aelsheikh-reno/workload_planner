@@ -1,0 +1,43 @@
+{
+  "review_context": {
+    "review_context_id": "review-ctx-activation-blocked",
+    "planning_run_id": "planning-run-review-03",
+    "source_snapshot_id": "source-snapshot-review-03",
+    "approved_plan_id": "approved-plan-03",
+    "delta_items": [
+      {
+        "delta_id": "delta-foundation",
+        "task_id": "task-foundation",
+        "task_external_id": "task-foundation",
+        "task_name": "Foundation task",
+        "dependency_delta_ids": [],
+        "connected_set_id": "connected-set-core",
+        "selected_for_acceptance": true
+      },
+      {
+        "delta_id": "delta-successor",
+        "task_id": "task-successor",
+        "task_external_id": "task-successor",
+        "task_name": "Successor task",
+        "dependency_delta_ids": ["delta-foundation"],
+        "connected_set_id": "connected-set-core",
+        "selected_for_acceptance": true
+      }
+    ]
+  },
+  "activation_state": {
+    "activation_id": "activation-ctx-blocked",
+    "status": "blocked",
+    "business_rule_blockers": [
+      {
+        "rule_id": "rule-approved-plan-pointer",
+        "code": "activation_requires_current_approved_plan",
+        "message": "Activation requires a current approved operating plan pointer before applying accepted changes.",
+        "entity_type": "approved_plan",
+        "entity_id": "approved-plan-03",
+        "entity_external_id": null
+      }
+    ],
+    "outcome": null
+  }
+}

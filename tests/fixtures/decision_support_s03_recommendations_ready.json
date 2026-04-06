@@ -1,0 +1,32 @@
+{
+  "state": "available",
+  "freshness_status": "fresh",
+  "recommendations": [
+    {
+      "recommendation_id": "rec-01",
+      "title": "Rechunk rollout validation",
+      "summary": "Split rollout validation into two smaller pieces to keep the queue easier to review.",
+      "action_family": "rechunk",
+      "priority_rank": 1,
+      "requires_review": true,
+      "rationale": "Lower blast radius while preserving the current date window.",
+      "affected_task_ids": [],
+      "affected_task_external_ids": [
+        "task-rollout"
+      ]
+    },
+    {
+      "recommendation_id": "rec-02",
+      "title": "Advance discovery prep",
+      "summary": "Pull discovery prep forward to use earlier available attention without changing ownership.",
+      "action_family": "move_defer",
+      "priority_rank": 2,
+      "requires_review": false,
+      "rationale": "Uses current capacity smoothly with lower handoff overhead.",
+      "affected_task_ids": [],
+      "affected_task_external_ids": [
+        "task-discovery"
+      ]
+    }
+  ]
+}

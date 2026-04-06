@@ -1,0 +1,37 @@
+{
+  "source_plan_fixture": "source_plan_resource_detail_balanced.json",
+  "approved_plan": {
+    "approved_plan_id": "approved-plan-delta-none",
+    "projects": [
+      {
+        "project_external_id": "project-resource-detail-balanced",
+        "project_name": "Resource Detail Balanced",
+        "finish_date": "2026-04-10"
+      }
+    ],
+    "tasks": [
+      {
+        "task_external_id": "task-discovery",
+        "task_name": "Discovery and framing",
+        "project_external_id": "project-resource-detail-balanced",
+        "approved_start_date": "2026-04-06",
+        "approved_due_date": "2026-04-07",
+        "assigned_resource_external_ids": [
+          "user-taylor"
+        ],
+        "item_type": "task"
+      },
+      {
+        "task_external_id": "task-rollout",
+        "task_name": "Rollout and validation",
+        "project_external_id": "project-resource-detail-balanced",
+        "approved_start_date": "2026-04-08",
+        "approved_due_date": "2026-04-10",
+        "assigned_resource_external_ids": [
+          "user-taylor"
+        ],
+        "item_type": "task"
+      }
+    ]
+  }
+}

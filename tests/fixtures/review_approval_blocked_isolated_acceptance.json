@@ -1,0 +1,29 @@
+{
+  "review_context": {
+    "review_context_id": "review-ctx-isolated",
+    "planning_run_id": "planning-run-review-01",
+    "source_snapshot_id": "source-snapshot-review-01",
+    "approved_plan_id": "approved-plan-01",
+    "delta_items": [
+      {
+        "delta_id": "delta-foundation",
+        "task_id": "task-foundation",
+        "task_external_id": "task-foundation",
+        "task_name": "Foundation task",
+        "dependency_delta_ids": [],
+        "connected_set_id": "connected-set-core",
+        "selected_for_acceptance": false
+      },
+      {
+        "delta_id": "delta-successor",
+        "task_id": "task-successor",
+        "task_external_id": "task-successor",
+        "task_name": "Successor task",
+        "dependency_delta_ids": ["delta-foundation"],
+        "connected_set_id": "connected-set-core",
+        "selected_for_acceptance": true
+      }
+    ]
+  },
+  "activation_state": null
+}

@@ -1,0 +1,51 @@
+{
+  "artifact": {
+    "external_id": "artifact-invalid-dependency",
+    "version": "v1"
+  },
+  "captured_at": "2026-04-04T11:00:00Z",
+  "projects": [
+    {
+      "external_id": "project-mercury",
+      "name": "Mercury Rollout",
+      "tasks": [
+        {
+          "assignees": [],
+          "dates": {
+            "due": "2026-04-08",
+            "start": "2026-04-07"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 12
+          },
+          "external_id": "task-prepare",
+          "name": "Prepare backlog"
+        },
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Kim Rivera",
+              "external_id": "user-kim"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-09",
+            "start": "2026-04-09"
+          },
+          "depends_on_external_ids": [
+            "task-missing"
+          ],
+          "effort": {
+            "unit": "hours",
+            "value": 6
+          },
+          "external_id": "task-sequence",
+          "name": "Sequence launch"
+        }
+      ]
+    }
+  ],
+  "source_system": "asana"
+}

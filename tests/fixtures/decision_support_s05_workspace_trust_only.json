@@ -1,0 +1,47 @@
+{
+  "screen_id": "S05",
+  "planning_context_key": "portfolio-warnings-03",
+  "source_snapshot_id": "source-snapshot-warnings-03",
+  "signals": [
+    {
+      "signal_id": "signal-s01-trust-03",
+      "screen_id": "S05",
+      "source_snapshot_id": "source-snapshot-warnings-03",
+      "planning_context_key": "portfolio-warnings-03",
+      "signal_type": "trust",
+      "severity": "warning",
+      "code": "criticality_zero_slack",
+      "message": "The portfolio draft has zero slack on a critical task chain.",
+      "advisory": true,
+      "blocking": false,
+      "interpretation_category": "trust_limited",
+      "source_issue_service": "Planning Engine Service",
+      "source_fact_id": "planning-fact-trust-01",
+      "source_fact_type": "planning_issue_fact",
+      "source_fact_severity": "warning",
+      "entity_type": "task",
+      "entity_id": "task-301",
+      "entity_external_id": "task-301"
+    },
+    {
+      "signal_id": "signal-s03-trust-03",
+      "screen_id": "S05",
+      "source_snapshot_id": "source-snapshot-warnings-03",
+      "planning_context_key": "portfolio-warnings-03",
+      "signal_type": "trust",
+      "severity": "warning",
+      "code": "dependency_chain_pressure",
+      "message": "The selected resource depends on a tightly coupled handoff chain.",
+      "advisory": true,
+      "blocking": false,
+      "interpretation_category": "trust_limited",
+      "source_issue_service": "Planning Engine Service",
+      "source_fact_id": "planning-fact-trust-02",
+      "source_fact_type": "planning_issue_fact",
+      "source_fact_severity": "warning",
+      "entity_type": "resource",
+      "entity_id": "resource-linus",
+      "entity_external_id": "user-linus"
+    }
+  ]
+}

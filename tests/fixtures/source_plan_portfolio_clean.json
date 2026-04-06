@@ -1,0 +1,55 @@
+{
+  "artifact": {
+    "external_id": "artifact-portfolio-clean",
+    "version": "v1"
+  },
+  "captured_at": "2026-04-04T13:00:00Z",
+  "projects": [
+    {
+      "external_id": "project-portfolio-clean",
+      "name": "Portfolio Clean Baseline",
+      "tasks": [
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Grace Hopper",
+              "external_id": "user-grace"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-10",
+            "start": "2026-04-06"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 8
+          },
+          "external_id": "task-clean",
+          "name": "Prepare clean portfolio view"
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "availability": {
+        "fte_ratio": 1.0
+      },
+      "calendar": {
+        "daily_capacity_hours": 8,
+        "name": "Standard Week",
+        "working_days": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ]
+      },
+      "display_name": "Grace Hopper",
+      "external_id": "user-grace"
+    }
+  ],
+  "source_system": "asana"
+}

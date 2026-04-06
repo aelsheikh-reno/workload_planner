@@ -1,0 +1,52 @@
+{
+  "artifact": {
+    "external_id": "artifact-capacity-missing-availability",
+    "version": "v1"
+  },
+  "captured_at": "2026-04-04T10:15:00Z",
+  "projects": [
+    {
+      "external_id": "project-capacity-missing-availability",
+      "name": "Capacity Missing Availability",
+      "tasks": [
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Morgan Yu",
+              "external_id": "user-morgan"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-10",
+            "start": "2026-04-06"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 40
+          },
+          "external_id": "task-capacity-missing-availability",
+          "name": "Model missing availability input"
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "calendar": {
+        "daily_capacity_hours": 8,
+        "name": "Standard Week",
+        "working_days": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ]
+      },
+      "display_name": "Morgan Yu",
+      "external_id": "user-morgan"
+    }
+  ],
+  "source_system": "asana"
+}

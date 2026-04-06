@@ -1,0 +1,51 @@
+{
+  "source_plan_fixture": "source_plan_review_project_scoped_tasks.json",
+  "approved_plan": {
+    "approved_plan_id": "approved-plan-project-scoped-collision",
+    "projects": [
+      {
+        "project_external_id": "project-alpha",
+        "project_name": "Project Alpha",
+        "finish_date": "2026-04-06"
+      },
+      {
+        "project_external_id": "project-beta",
+        "project_name": "Project Beta",
+        "finish_date": "2026-04-07"
+      }
+    ],
+    "tasks": [
+      {
+        "task_external_id": "task-shared",
+        "task_name": "Shared External Task",
+        "project_external_id": "project-alpha",
+        "approved_start_date": "2026-04-06",
+        "approved_due_date": "2026-04-06",
+        "assigned_resource_external_ids": [
+          "user-casey"
+        ],
+        "item_type": "task"
+      },
+      {
+        "task_external_id": "task-shared",
+        "task_name": "Shared External Task",
+        "project_external_id": "project-beta",
+        "approved_start_date": "2026-04-07",
+        "approved_due_date": "2026-04-07",
+        "assigned_resource_external_ids": [
+          "user-jordan"
+        ],
+        "item_type": "task"
+      }
+    ]
+  },
+  "recommendation_origin_refs": [
+    {
+      "recommendation_id": "recommendation-project-beta-shared-task",
+      "origin_screen_id": "S03",
+      "project_external_id": "project-beta",
+      "task_external_id": "task-shared",
+      "requires_review_handoff": true
+    }
+  ]
+}

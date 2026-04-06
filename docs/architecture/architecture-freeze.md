@@ -101,7 +101,7 @@ Does not own:
 - Workflow Orchestrator coordinates workflows but owns no business truth outside workflow state.
 - Integration Service is the only external-system writer.
 - Planning Engine owns draft planning outputs only.
-- Review & Approval owns reviewable deltas, acceptance state, and approved operating plan state only.
+- Review & Approval owns reviewable deltas, acceptance state, approved operating plan state, and activation business state only.
 - Decision Support is the only warning/trust interpreter and recommendation owner.
 - Other services may emit issue facts/signals only.
 

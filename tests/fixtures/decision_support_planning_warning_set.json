@@ -1,0 +1,33 @@
+{
+  "screen_id": "S05",
+  "planning_context_key": "portfolio-risk-alpha",
+  "source_snapshot_id": "source-snapshot-warning-01",
+  "source_issue_facts": [],
+  "planning_issue_facts": [
+    {
+      "fact_id": "planning-fact-01",
+      "planning_run_id": "planning-run-warning-01",
+      "draft_schedule_id": "draft-schedule-warning-01",
+      "source_snapshot_id": "source-snapshot-warning-01",
+      "severity": "warning",
+      "code": "draft_unschedulable",
+      "message": "A draft task remains unschedulable within the current capacity window.",
+      "entity_type": "task",
+      "entity_id": "task-planning-01",
+      "entity_external_id": "task-planning-01"
+    },
+    {
+      "fact_id": "planning-fact-02",
+      "planning_run_id": "planning-run-warning-01",
+      "draft_schedule_id": "draft-schedule-warning-01",
+      "source_snapshot_id": "source-snapshot-warning-01",
+      "severity": "warning",
+      "code": "criticality_zero_slack",
+      "message": "Zero slack means the current draft has no schedule buffer for this task.",
+      "entity_type": "task",
+      "entity_id": "task-planning-02",
+      "entity_external_id": "task-planning-02"
+    }
+  ],
+  "review_issue_facts": []
+}

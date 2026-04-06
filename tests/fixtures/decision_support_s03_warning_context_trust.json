@@ -1,0 +1,19 @@
+{
+  "signals": [
+    {
+      "signal_id": "s03-trust-01",
+      "signal_type": "trust",
+      "severity": "warning",
+      "code": "dependency_chain_pressure",
+      "message": "This recommendation set should be reviewed with limited trust because the dependency chain is tight.",
+      "advisory": true,
+      "blocking": false,
+      "interpretation_category": "trust_limited",
+      "source_issue_service": "Planning Engine Service",
+      "source_fact_id": "planning-fact-s03-04",
+      "source_fact_type": "planning_issue_fact",
+      "source_fact_severity": "warning",
+      "entity_type": "resource"
+    }
+  ]
+}

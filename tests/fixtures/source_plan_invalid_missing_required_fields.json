@@ -1,0 +1,49 @@
+{
+  "artifact": {
+    "external_id": "artifact-invalid-required",
+    "version": "v1"
+  },
+  "captured_at": "2026-04-04T10:00:00Z",
+  "projects": [
+    {
+      "external_id": "project-apollo",
+      "name": "Apollo Launch",
+      "tasks": [
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Ada Lovelace",
+              "external_id": "user-ada"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-08",
+            "start": "2026-04-07"
+          },
+          "effort": {
+            "unit": "hours",
+            "value": 8
+          },
+          "external_id": "task-missing-name"
+        },
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Grace Hopper",
+              "external_id": "user-grace"
+            }
+          ],
+          "dates": {
+            "due": "2026-04-10",
+            "start": "2026-04-09"
+          },
+          "external_id": "task-missing-effort",
+          "name": "Task missing effort"
+        }
+      ]
+    }
+  ],
+  "source_system": "asana"
+}

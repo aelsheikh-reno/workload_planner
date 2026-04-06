@@ -1,0 +1,46 @@
+{
+  "source_plan_fixture": "source_plan_schedule_happy_path.json",
+  "approved_plan": {
+    "approved_plan_id": "approved-plan-delta-linked",
+    "projects": [
+      {
+        "project_external_id": "project-schedule-happy",
+        "project_name": "Schedule Happy Path",
+        "finish_date": "2026-04-07"
+      }
+    ],
+    "tasks": [
+      {
+        "task_external_id": "task-design",
+        "task_name": "Design draft schedule inputs",
+        "project_external_id": "project-schedule-happy",
+        "approved_start_date": "2026-04-05",
+        "approved_due_date": "2026-04-06",
+        "assigned_resource_external_ids": [
+          "user-ada"
+        ],
+        "item_type": "task"
+      },
+      {
+        "task_external_id": "task-implement",
+        "task_name": "Implement deterministic placement",
+        "project_external_id": "project-schedule-happy",
+        "approved_start_date": "2026-04-07",
+        "approved_due_date": "2026-04-07",
+        "assigned_resource_external_ids": [
+          "user-ada"
+        ],
+        "item_type": "task"
+      }
+    ]
+  },
+  "recommendation_origin_refs": [
+    {
+      "recommendation_id": "recommendation-implement-review",
+      "origin_screen_id": "S03",
+      "project_external_id": "project-schedule-happy",
+      "task_external_id": "task-implement",
+      "requires_review_handoff": true
+    }
+  ]
+}

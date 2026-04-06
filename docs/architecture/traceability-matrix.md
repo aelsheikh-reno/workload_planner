@@ -17,10 +17,10 @@
 | Screen | Primary services | Notes |
 |---|---|---|
 | S01 — Portfolio Swimlane Home | API Gateway / BFF, Planning Engine Service | May display EPIC-05/EPIC-07 indicators |
-| S02 — Planning Setup | API Gateway / BFF, Integration Service, Workflow Orchestrator Service | Readiness and run initiation |
+| S02 — Planning Setup | API Gateway / BFF, Integration Service, Planning Engine Service, Decision Support Service, Workflow Orchestrator Service | Readiness, advisory setup visibility, and run initiation |
 | S03 — Resource Detail | API Gateway / BFF, Planning Engine Service, Decision Support Service | Resource diagnosis and recommendation consumption |
-| S04 — Delta Review | API Gateway / BFF, Review & Approval Service | Review, acceptance, activation |
-| S05 — Planning Warnings Workspace | API Gateway / BFF, Decision Support Service | Dedicated warning/trust review |
+| S04 — Delta Review | API Gateway / BFF, Review & Approval Service | Review, acceptance, activation, plus review-confidence warning/trust context from Decision Support Service |
+| S05 — Planning Warnings Workspace | API Gateway / BFF, Decision Support Service | Dedicated warning/trust review with upstream issue facts from Review & Approval, Planning Engine, and Integration Service |
 | D01 — Swimlane Task Drill-Down Drawer | API Gateway / BFF, Planning Engine Service | Task drill-down from S01 — Portfolio Swimlane Home |
 | M01 — Connected Change Set Modal | API Gateway / BFF, Review & Approval Service | Connected-set handling from S04 — Delta Review |
 
@@ -40,15 +40,15 @@
 
 ### Planning Engine Service
 - Product epics: EPIC-02, EPIC-03, EPIC-04
-- Screens: S01 — Portfolio Swimlane Home, S03 — Resource Detail, D01 — Swimlane Task Drill-Down Drawer
+- Screens: S01 — Portfolio Swimlane Home, S02 — Planning Setup, S03 — Resource Detail, D01 — Swimlane Task Drill-Down Drawer
 
 ### Review & Approval Service
-- Product epics: EPIC-07
-- Screens: S04 — Delta Review, M01 — Connected Change Set Modal
+- Product epics: EPIC-05, EPIC-07
+- Screens: S04 — Delta Review, S05 — Planning Warnings Workspace, M01 — Connected Change Set Modal
 
 ### Decision Support Service
 - Product epics: EPIC-05, EPIC-06
-- Screens: S03 — Resource Detail, S05 — Planning Warnings Workspace
+- Screens: S02 — Planning Setup, S03 — Resource Detail, S04 — Delta Review, S05 — Planning Warnings Workspace
 
 ## Drift-prevention rules
 - Backlog, screens, acceptance criteria, and testing use the 7-epic product model.

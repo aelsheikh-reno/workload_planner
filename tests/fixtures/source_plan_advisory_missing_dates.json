@@ -1,0 +1,31 @@
+{
+  "artifact": {
+    "external_id": "artifact-advisory-dates",
+    "version": "v1"
+  },
+  "captured_at": "2026-04-04T09:30:00Z",
+  "projects": [
+    {
+      "external_id": "project-atlas",
+      "name": "Atlas Migration",
+      "tasks": [
+        {
+          "assignees": [
+            {
+              "allocation_percent": 100,
+              "display_name": "Morgan Yu",
+              "external_id": "user-morgan"
+            }
+          ],
+          "effort": {
+            "unit": "hours",
+            "value": 12
+          },
+          "external_id": "task-advisory-dates",
+          "name": "Prepare migration checklist"
+        }
+      ]
+    }
+  ],
+  "source_system": "asana"
+}

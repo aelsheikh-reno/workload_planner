@@ -1,0 +1,72 @@
+{
+  "screen_id": "S05",
+  "planning_context_key": "portfolio-warning-alpha",
+  "source_snapshot_id": "source-snapshot-warning-01",
+  "source_issue_facts": [
+    {
+      "issue_id": "source-issue-03",
+      "source_snapshot_id": "source-snapshot-warning-01",
+      "source_system": "asana",
+      "severity": "advisory",
+      "code": "missing_date_window",
+      "message": "A date window should be provided for better planning accuracy.",
+      "entity_type": "task",
+      "entity_external_id": "task-warning-01",
+      "field": "date_window"
+    }
+  ],
+  "planning_issue_facts": [
+    {
+      "fact_id": "planning-fact-03",
+      "planning_run_id": "planning-run-warning-02",
+      "draft_schedule_id": "draft-schedule-warning-02",
+      "source_snapshot_id": "source-snapshot-warning-01",
+      "severity": "warning",
+      "code": "dependency_chain_pressure",
+      "message": "The current dependency chain leaves little tolerance for downstream change.",
+      "entity_type": "task",
+      "entity_id": "task-warning-02",
+      "entity_external_id": "task-warning-02"
+    }
+  ],
+  "review_issue_facts": [
+    {
+      "fact_id": "review-fact-04",
+      "emitted_by_service": "Review & Approval Service",
+      "context_scope": "activation",
+      "fact_type": "activation_blocker",
+      "review_context_id": "review-context-02",
+      "planning_run_id": "planning-run-warning-02",
+      "source_snapshot_id": "source-snapshot-warning-01",
+      "approved_plan_id": "approved-plan-02",
+      "activation_id": "activation-02",
+      "severity": "blocking",
+      "code": "activation_requires_current_approved_plan",
+      "message": "Activation requires the current approved operating plan pointer.",
+      "entity_type": "approved_plan",
+      "entity_id": "approved-plan-02",
+      "entity_external_id": null,
+      "related_delta_ids": [],
+      "related_connected_set_id": null
+    },
+    {
+      "fact_id": "review-fact-05",
+      "emitted_by_service": "Review & Approval Service",
+      "context_scope": "activation",
+      "fact_type": "activation_outcome",
+      "review_context_id": "review-context-02",
+      "planning_run_id": "planning-run-warning-02",
+      "source_snapshot_id": "source-snapshot-warning-01",
+      "approved_plan_id": "approved-plan-02",
+      "activation_id": "activation-02",
+      "severity": "info",
+      "code": "activation_completed",
+      "message": "Accepted changes were activated into the approved operating plan.",
+      "entity_type": "activation_record",
+      "entity_id": "activation-02",
+      "entity_external_id": null,
+      "related_delta_ids": ["delta-activation-01"],
+      "related_connected_set_id": null
+    }
+  ]
+}

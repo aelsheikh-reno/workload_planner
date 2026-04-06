@@ -1,0 +1,7 @@
+{
+  "idempotency_key": "planning-context-apollo-2026-04-04",
+  "max_attempts": 2,
+  "planning_context_key": "project-apollo::baseline-plan",
+  "requested_at": "2026-04-04T12:00:00Z",
+  "requested_by": "delivery-manager@example.com"
+}

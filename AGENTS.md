@@ -74,3 +74,39 @@ If a requested change conflicts with these docs, stop and update the docs first.
   - what must not be touched
   - required tests
 - Do not do cross-service refactors unless the task is explicitly a contract task.
+
+## Required implementation workflow
+For every implementation task, Codex must:
+
+1. Read AGENTS.md and the relevant docs before coding.
+2. Produce a short execution plan before changing files.
+3. Identify:
+   - owning service/module
+   - affected epic(s)
+   - affected screen(s)
+   - docs/contracts/tests touched
+4. Implement only the bounded task requested.
+5. Run required tests/checks.
+6. Spawn a reviewer subagent before finishing.
+
+## Reviewer subagent requirements
+The reviewer subagent must audit:
+- service-boundary compliance
+- scope drift
+- contract/doc alignment
+- test adequacy
+- unintended file changes
+- naming/model drift against canonical docs
+
+The reviewer must report:
+- pass/fail
+- issues found
+- required fixes before merge
+- whether the task is truly done against acceptance criteria
+
+## Done criteria
+A task is not done until:
+- implementation is complete
+- required tests pass
+- docs/contracts are updated if needed
+- reviewer subagent signs off or lists explicit blocking issues

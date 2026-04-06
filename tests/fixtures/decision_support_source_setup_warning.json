@@ -1,0 +1,31 @@
+{
+  "screen_id": "S02",
+  "planning_context_key": "portfolio-setup-alpha",
+  "source_snapshot_id": "source-snapshot-warning-01",
+  "source_issue_facts": [
+    {
+      "issue_id": "source-issue-01",
+      "source_snapshot_id": "source-snapshot-warning-01",
+      "source_system": "asana",
+      "severity": "blocking",
+      "code": "missing_task_name",
+      "message": "A task name is required before the source plan can be normalized.",
+      "entity_type": "task",
+      "entity_external_id": "task-setup-01",
+      "field": "name"
+    },
+    {
+      "issue_id": "source-issue-02",
+      "source_snapshot_id": "source-snapshot-warning-01",
+      "source_system": "asana",
+      "severity": "advisory",
+      "code": "missing_date_window",
+      "message": "A date window should be provided for better planning accuracy.",
+      "entity_type": "task",
+      "entity_external_id": "task-setup-02",
+      "field": "date_window"
+    }
+  ],
+  "planning_issue_facts": [],
+  "review_issue_facts": []
+}

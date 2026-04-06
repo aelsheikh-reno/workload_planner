@@ -1,0 +1,5 @@
+{
+  "error_code": "downstream_hook_unavailable",
+  "error_message": "The downstream activation hook is temporarily unavailable.",
+  "retryable": true
+}

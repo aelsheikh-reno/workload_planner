@@ -1,0 +1,38 @@
+{
+  "review_context": {
+    "review_context_id": "review-ctx-activation-success",
+    "planning_run_id": "planning-run-review-04",
+    "source_snapshot_id": "source-snapshot-review-04",
+    "approved_plan_id": "approved-plan-04",
+    "delta_items": [
+      {
+        "delta_id": "delta-foundation",
+        "task_id": "task-foundation",
+        "task_external_id": "task-foundation",
+        "task_name": "Foundation task",
+        "dependency_delta_ids": [],
+        "connected_set_id": "connected-set-core",
+        "selected_for_acceptance": true
+      },
+      {
+        "delta_id": "delta-successor",
+        "task_id": "task-successor",
+        "task_external_id": "task-successor",
+        "task_name": "Successor task",
+        "dependency_delta_ids": ["delta-foundation"],
+        "connected_set_id": "connected-set-core",
+        "selected_for_acceptance": true
+      }
+    ]
+  },
+  "activation_state": {
+    "activation_id": "activation-ctx-success",
+    "status": "activated",
+    "business_rule_blockers": [],
+    "outcome": {
+      "code": "activation_completed",
+      "message": "Accepted changes were activated into the approved operating plan.",
+      "activated_delta_ids": ["delta-foundation", "delta-successor"]
+    }
+  }
+}

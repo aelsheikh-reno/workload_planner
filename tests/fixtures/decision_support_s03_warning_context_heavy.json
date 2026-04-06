@@ -1,0 +1,50 @@
+{
+  "signals": [
+    {
+      "signal_id": "s03-warning-01",
+      "signal_type": "warning",
+      "severity": "warning",
+      "code": "queue_pressure",
+      "message": "The selected resource has a concentrated work queue that should be reviewed.",
+      "advisory": true,
+      "blocking": false,
+      "interpretation_category": "advisory_warning",
+      "source_issue_service": "Planning Engine Service",
+      "source_fact_id": "planning-fact-s03-01",
+      "source_fact_type": "planning_issue_fact",
+      "source_fact_severity": "warning",
+      "entity_type": "resource"
+    },
+    {
+      "signal_id": "s03-warning-02",
+      "signal_type": "trust",
+      "severity": "warning",
+      "code": "criticality_zero_slack",
+      "message": "The selected resource is working through a zero-slack path.",
+      "advisory": true,
+      "blocking": false,
+      "interpretation_category": "trust_limited",
+      "source_issue_service": "Planning Engine Service",
+      "source_fact_id": "planning-fact-s03-02",
+      "source_fact_type": "planning_issue_fact",
+      "source_fact_severity": "warning",
+      "entity_type": "resource"
+    },
+    {
+      "signal_id": "s03-warning-03",
+      "signal_type": "warning",
+      "severity": "warning",
+      "code": "draft_unschedulable",
+      "message": "A task assigned to the selected resource could not be fully placed.",
+      "advisory": true,
+      "blocking": false,
+      "interpretation_category": "advisory_warning",
+      "source_issue_service": "Planning Engine Service",
+      "source_fact_id": "planning-fact-s03-03",
+      "source_fact_type": "planning_issue_fact",
+      "source_fact_severity": "warning",
+      "entity_type": "task",
+      "entity_external_id": "task-rollout"
+    }
+  ]
+}
