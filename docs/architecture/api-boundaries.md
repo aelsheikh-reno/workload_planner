@@ -127,7 +127,7 @@ Activation command result contract:
 - activation_state
 - resulting_approved_plan_snapshot when activation completes
 - reused_existing for idempotent re-activation of the same already-applied approved set
-- downstream_handoff with Workflow Orchestrator ownership metadata and the initial `not_started` execution state only
+- downstream_handoff with Workflow Orchestrator ownership metadata, the initial `not_started` execution state only, the activated `source_snapshot_id`, and deterministic write-back targets for later post-activation orchestration
 
 Contract rules:
 - delta scope is limited to task dates, milestone dates, project finish, and in-scope assignment changes only
@@ -224,6 +224,13 @@ Activation workflow trigger contract:
 - activation_id
 - review_context_id
 - approved_plan_id
+- source_snapshot_id when the downstream workflow carries bounded write-back provenance
+- write_back_targets when bounded post-activation write-back is required, with:
+  - target_id/delta_id
+  - entity_type/entity_external_id/entity_name
+  - project_external_id when task-scoped
+  - write_back_action
+  - write_back_fields
 - requested_by
 - requested_at
 - idempotency_key
@@ -235,6 +242,8 @@ Activation downstream-step handoff contract:
 - activation_id
 - review_context_id
 - approved_plan_id
+- source_snapshot_id when bounded post-activation write-back is in scope for the workflow
+- write_back_targets when the side-effect step carries deterministic bounded write-back scope into Integration
 - step_name
 - requested_by
 - requested_at
@@ -259,9 +268,10 @@ Lifecycle rules:
 - Review & Approval remains the owner of activation business result, approved operating plan mutation, and activation blocker logic
 - activation workflow admission is valid only after explicit activation succeeds and produces a downstream handoff requirement
 - downstream hooks are sequenced deterministically as recomputation first, then bounded side-effect sequencing
+- the bounded side-effect step may carry Integration-owned write-back scope/provenance from Review & Approval, but Workflow Orchestrator still owns only async sequencing and visible workflow state
 - repeated workflow start requests for the same activation ID reuse the existing workflow rather than creating a duplicate execution
 - retry remains an explicit workflow-execution concern and does not reopen activation business admission
-- no external write-back execution is implemented here; only bounded sequencing hooks and visible async state are in scope
+- bounded external write-back execution remains Integration-owned; Workflow Orchestrator only sequences the side-effect hook and surfaces async workflow state
 
 ## S02 — Planning Setup composed read contract
 The API Gateway / BFF owns the S02 — Planning Setup view-model composition baseline. The composed contract covers:
@@ -271,6 +281,54 @@ The API Gateway / BFF owns the S02 — Planning Setup view-model composition bas
 - overall runnable versus not-runnable evaluation for S02 only
 - explicit separation between true no-runnable-plan blockers and advisory warning/trust signals
 - lightweight screen state such as refresh and access restriction without moving domain ownership into the BFF
+
+## Integration bounded external write-back baseline
+The Integration Service owns the bounded post-activation external write-back baseline. The contract covers:
+- explicit execution only from an orchestrated post-activation request
+- deterministic target scope limited to already-approved MVP write-back fields/actions
+- persisted write-back request/result state keyed by request ID with activation-linked provenance
+- success, partial, failed, and idempotent result handling without redefining approved-plan truth
+
+Bounded external write-back request contract:
+- request_id
+- activation_command_id/activation_id/review_context_id/approved_plan_id
+- source_snapshot_id
+- orchestrator_workflow_instance_id
+- orchestrator_step_name as `activation_side_effect_sequencing`
+- requested_by/requested_at
+- attempt_number
+- targets with:
+  - target_id/delta_id
+  - entity_type/entity_external_id/entity_name
+  - project_external_id when task-scoped
+  - write_back_action as `update_task_fields` or `update_project_fields`
+  - write_back_fields limited to `task_start_date`, `task_due_date`, `milestone_date`, `project_finish_date`, and `assigned_resource_external_ids`
+- idempotency_key when the orchestrated caller wants deterministic reuse for the same request
+
+Bounded external write-back result/status contract:
+- request_id
+- activation_command_id/activation_id/review_context_id/approved_plan_id
+- source_snapshot_id/source_system
+- orchestrator_workflow_instance_id/orchestrator_step_name
+- attempt_number
+- status as `succeeded`, `partial`, or `failed`
+- total_target_count/succeeded_target_count/failed_target_count
+- requested_by/requested_at/completed_at
+- reused_existing for idempotent replay of the same request
+- item_results with:
+  - target_id/delta_id
+  - entity_type/entity_external_id
+  - status as `succeeded` or `failed`
+  - applied_fields
+  - error_code/error_message when a bounded external target rejects the request
+
+Contract rules:
+- Integration Service is the only service allowed to write to external systems
+- write-back may run only after explicit activation and only from an orchestrated post-activation request
+- write-back scope remains bounded to the approved MVP delta attributes only
+- write-back result/status is Integration-owned and must remain separate from activation business truth and approved operating plan truth
+- failed or partial downstream write-back never rolls back the approved operating plan snapshot
+- repeated execution of the same request may reuse the existing Integration-owned result; retry stays an explicit orchestrated concern and does not reopen activation business admission
 
 S02 composed view-model contract:
 - screen/query context metadata

@@ -17,6 +17,8 @@ from services.workflow_orchestrator_service import (
     ActivationExecutionGateway,
     ActivationExecutionGatewayError,
     ActivationExecutionStepReceipt,
+    ActivationWorkflowAdmissionError,
+    ActivationWriteBackTargetReference,
     ActivationWorkflowTrigger,
     PlanningEngineGateway,
     WorkflowOrchestratorService,
@@ -157,6 +159,20 @@ class ActivationWorkflowLifecycleTests(unittest.TestCase):
             activation_id=self.activation_result.activation_state.activation_id,
             review_context_id=self.review_context.review_context_id,
             approved_plan_id=self.activation_result.activation_state.approved_plan_id_after,
+            source_snapshot_id=self.activation_result.downstream_handoff.source_snapshot_id,
+            write_back_targets=[
+                ActivationWriteBackTargetReference(
+                    target_id=target.target_id,
+                    delta_id=target.delta_id,
+                    entity_type=target.entity_type,
+                    entity_external_id=target.entity_external_id,
+                    entity_name=target.entity_name,
+                    project_external_id=target.project_external_id,
+                    write_back_action=target.write_back_action,
+                    write_back_fields=list(target.write_back_fields),
+                )
+                for target in self.activation_result.downstream_handoff.write_back_targets
+            ],
             requested_by=payload["requested_by"],
             requested_at=payload["requested_at"],
             idempotency_key=payload["idempotency_key"],
@@ -170,8 +186,53 @@ class ActivationWorkflowLifecycleTests(unittest.TestCase):
         self.assertEqual(result.workflow_instance.current_status, "dispatched")
         self.assertEqual(result.workflow_instance.current_step, ACTIVATION_RECOMPUTATION_STEP)
         self.assertEqual(result.workflow_instance.activation_id, self.activation_result.activation_state.activation_id)
+        self.assertEqual(
+            result.workflow_instance.source_snapshot_id,
+            self.activation_result.downstream_handoff.source_snapshot_id,
+        )
         self.assertEqual(len(self.gateway.requests), 1)
         self.assertEqual(self.gateway.requests[0].step_name, ACTIVATION_RECOMPUTATION_STEP)
+        self.assertEqual(
+            self.gateway.requests[0].source_snapshot_id,
+            self.activation_result.downstream_handoff.source_snapshot_id,
+        )
+        self.assertEqual(
+            [target.entity_external_id for target in self.gateway.requests[0].write_back_targets],
+            ["task-rollout"],
+        )
+
+    def test_activation_workflow_rejects_missing_source_snapshot_id_when_write_back_targets_exist(self):
+        trigger = self._build_trigger()
+        trigger_without_snapshot = ActivationWorkflowTrigger(
+            activation_command_id=trigger.activation_command_id,
+            activation_id=trigger.activation_id,
+            review_context_id=trigger.review_context_id,
+            approved_plan_id=trigger.approved_plan_id,
+            source_snapshot_id=None,
+            write_back_targets=list(trigger.write_back_targets),
+            requested_by=trigger.requested_by,
+            requested_at=trigger.requested_at,
+            idempotency_key=trigger.idempotency_key,
+            max_attempts=trigger.max_attempts,
+        )
+
+        with self.assertRaises(ActivationWorkflowAdmissionError) as raised:
+            self.service.start_activation_workflow(trigger_without_snapshot)
+
+        self.assertEqual(raised.exception.code, "missing_source_snapshot_id")
+        self.assertIn("source_snapshot_id is required", raised.exception.message)
+        self.assertEqual(self.gateway.requests, [])
+
+    def test_activation_workflow_allows_write_back_targets_when_source_snapshot_id_is_present(self):
+        result = self.service.start_activation_workflow(self._build_trigger())
+
+        self.assertEqual(result.workflow_instance.current_status, "dispatched")
+        self.assertEqual(len(self.gateway.requests), 1)
+        self.assertEqual(
+            self.gateway.requests[0].source_snapshot_id,
+            self.activation_result.downstream_handoff.source_snapshot_id,
+        )
+        self.assertTrue(self.gateway.requests[0].write_back_targets)
 
     def test_async_status_progression_to_completion(self):
         result = self.service.start_activation_workflow(self._build_trigger())

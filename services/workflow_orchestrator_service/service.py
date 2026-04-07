@@ -29,6 +29,7 @@ from .contracts import (
     ActivationWorkflowStartResult,
     ActivationWorkflowStatusView,
     ActivationWorkflowTrigger,
+    ActivationWriteBackTargetReference,
     PlanningEngineExecutionRequest,
     PlanningRunStartResult,
     PlanningRunStatusView,
@@ -418,6 +419,8 @@ class WorkflowOrchestratorService:
             activation_id=trigger.activation_id,
             review_context_id=trigger.review_context_id,
             approved_plan_id=trigger.approved_plan_id,
+            source_snapshot_id=trigger.source_snapshot_id,
+            write_back_targets=list(trigger.write_back_targets),
             current_status=WORKFLOW_STATUS_QUEUED,
             current_step=ACTIVATION_RECOMPUTATION_STEP,
             current_attempt=1,
@@ -877,6 +880,11 @@ class WorkflowOrchestratorService:
                 "missing_approved_plan_id",
                 "approved_plan_id is required for activation workflow orchestration.",
             )
+        if trigger.write_back_targets and not trigger.source_snapshot_id:
+            raise ActivationWorkflowAdmissionError(
+                "missing_source_snapshot_id",
+                "source_snapshot_id is required when activation workflow orchestration carries bounded write-back targets.",
+            )
 
     def _require_workflow(self, workflow_instance_id: str) -> PlanningRunWorkflowInstance:
         workflow = self._repository.get_workflow(workflow_instance_id)
@@ -945,6 +953,20 @@ class WorkflowOrchestratorService:
             activation_id=workflow.activation_id,
             review_context_id=workflow.review_context_id,
             approved_plan_id=workflow.approved_plan_id,
+            source_snapshot_id=workflow.source_snapshot_id,
+            write_back_targets=[
+                ActivationWriteBackTargetReference(
+                    target_id=target.target_id,
+                    delta_id=target.delta_id,
+                    entity_type=target.entity_type,
+                    entity_external_id=target.entity_external_id,
+                    entity_name=target.entity_name,
+                    project_external_id=target.project_external_id,
+                    write_back_action=target.write_back_action,
+                    write_back_fields=list(target.write_back_fields),
+                )
+                for target in workflow.write_back_targets
+            ],
             step_name=step_name,
             requested_by=workflow.requested_by,
             requested_at=requested_at,

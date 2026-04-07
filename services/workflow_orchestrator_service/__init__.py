@@ -6,6 +6,7 @@ from .contracts import (
     ACTIVATION_WORKFLOW_TYPE,
     ActivationExecutionStepReceipt,
     ActivationExecutionStepRequest,
+    ActivationWriteBackTargetReference,
     ActivationWorkflowInstance,
     ActivationWorkflowStartResult,
     ActivationWorkflowStatusView,
@@ -25,6 +26,7 @@ from .gateways import (
     PlanningEngineGateway,
     PlanningEngineGatewayError,
 )
+from .activation_gateway import IntegrationBackedActivationExecutionGateway
 from .repository import InMemoryWorkflowOrchestratorRepository
 from .service import (
     ActivationWorkflowAdmissionError,
@@ -41,11 +43,13 @@ __all__ = [
     "ActivationExecutionGatewayError",
     "ActivationExecutionStepReceipt",
     "ActivationExecutionStepRequest",
+    "ActivationWriteBackTargetReference",
     "ActivationWorkflowAdmissionError",
     "ActivationWorkflowInstance",
     "ActivationWorkflowStartResult",
     "ActivationWorkflowStatusView",
     "ActivationWorkflowTrigger",
+    "IntegrationBackedActivationExecutionGateway",
     "InMemoryWorkflowOrchestratorRepository",
     "PlanningEngineExecutionRequest",
     "PlanningEngineExecutionReceipt",

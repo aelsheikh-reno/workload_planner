@@ -26,7 +26,7 @@ Owns:
 - normalized resource exception inputs
 - normalized effort/date field normalization
 - source sync/readiness state
-- write-back request/result state
+- activation-linked write-back request/result state
 - integration audit records
 - integration issue facts/signals
 
@@ -113,7 +113,7 @@ Reference discipline:
 - record provenance conceptually:
   - derived from draft plan X
   - warning derived from issue fact Y
-  - write-back triggered by activation Z
+  - write-back request Q triggered by activation Z through workflow W step `activation_side_effect_sequencing`
 - external project/task/resource IDs remain mapped only through Integration-owned source mappings
 
 ## State model decomposition

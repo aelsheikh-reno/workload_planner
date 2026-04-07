@@ -1,7 +1,27 @@
-"""Explicit Integration Service contracts for normalized source intake."""
+"""Explicit Integration Service contracts for normalized source intake and write-back."""
 
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
+
+
+BOUND_WRITE_BACK_TRIGGER_STEP = "activation_side_effect_sequencing"
+BOUND_WRITE_BACK_ACTION_UPDATE_TASK_FIELDS = "update_task_fields"
+BOUND_WRITE_BACK_ACTION_UPDATE_PROJECT_FIELDS = "update_project_fields"
+
+WRITE_BACK_ITEM_STATUS_SUCCEEDED = "succeeded"
+WRITE_BACK_ITEM_STATUS_FAILED = "failed"
+
+WRITE_BACK_STATUS_SUCCEEDED = "succeeded"
+WRITE_BACK_STATUS_PARTIAL = "partial"
+WRITE_BACK_STATUS_FAILED = "failed"
+
+ALLOWED_WRITE_BACK_FIELDS = {
+    "task_start_date",
+    "task_due_date",
+    "milestone_date",
+    "project_finish_date",
+    "assigned_resource_external_ids",
+}
 
 
 @dataclass(frozen=True)
@@ -153,6 +173,146 @@ class SourceReadiness:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class BoundedWriteBackTarget:
+    target_id: str
+    delta_id: str
+    entity_type: str
+    entity_external_id: str
+    entity_name: str
+    project_external_id: Optional[str]
+    write_back_action: str
+    write_back_fields: List[str]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "target_id": self.target_id,
+            "delta_id": self.delta_id,
+            "entity_type": self.entity_type,
+            "entity_external_id": self.entity_external_id,
+            "entity_name": self.entity_name,
+            "project_external_id": self.project_external_id,
+            "write_back_action": self.write_back_action,
+            "write_back_fields": list(self.write_back_fields),
+        }
+
+
+@dataclass(frozen=True)
+class BoundedWriteBackRequest:
+    request_id: str
+    activation_command_id: str
+    activation_id: str
+    review_context_id: str
+    approved_plan_id: str
+    source_snapshot_id: str
+    orchestrator_workflow_instance_id: str
+    orchestrator_step_name: str
+    requested_by: str
+    requested_at: str
+    attempt_number: int
+    targets: List[BoundedWriteBackTarget]
+    idempotency_key: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "activation_command_id": self.activation_command_id,
+            "activation_id": self.activation_id,
+            "review_context_id": self.review_context_id,
+            "approved_plan_id": self.approved_plan_id,
+            "source_snapshot_id": self.source_snapshot_id,
+            "orchestrator_workflow_instance_id": self.orchestrator_workflow_instance_id,
+            "orchestrator_step_name": self.orchestrator_step_name,
+            "requested_by": self.requested_by,
+            "requested_at": self.requested_at,
+            "attempt_number": self.attempt_number,
+            "targets": [target.to_dict() for target in self.targets],
+            "idempotency_key": self.idempotency_key,
+        }
+
+
+@dataclass(frozen=True)
+class BoundedWriteBackItemResult:
+    target_id: str
+    delta_id: str
+    entity_type: str
+    entity_external_id: str
+    status: str
+    applied_fields: List[str]
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "target_id": self.target_id,
+            "delta_id": self.delta_id,
+            "entity_type": self.entity_type,
+            "entity_external_id": self.entity_external_id,
+            "status": self.status,
+            "applied_fields": list(self.applied_fields),
+            "error_code": self.error_code,
+            "error_message": self.error_message,
+        }
+
+
+@dataclass(frozen=True)
+class BoundedWriteBackExecutionReceipt:
+    completed_at: str
+    item_results: List[BoundedWriteBackItemResult]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "completed_at": self.completed_at,
+            "item_results": [item_result.to_dict() for item_result in self.item_results],
+        }
+
+
+@dataclass(frozen=True)
+class BoundedWriteBackResult:
+    request_id: str
+    activation_command_id: str
+    activation_id: str
+    review_context_id: str
+    approved_plan_id: str
+    source_snapshot_id: str
+    source_system: str
+    orchestrator_workflow_instance_id: str
+    orchestrator_step_name: str
+    attempt_number: int
+    status: str
+    total_target_count: int
+    succeeded_target_count: int
+    failed_target_count: int
+    requested_by: str
+    requested_at: str
+    completed_at: str
+    reused_existing: bool
+    item_results: List[BoundedWriteBackItemResult]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "activation_command_id": self.activation_command_id,
+            "activation_id": self.activation_id,
+            "review_context_id": self.review_context_id,
+            "approved_plan_id": self.approved_plan_id,
+            "source_snapshot_id": self.source_snapshot_id,
+            "source_system": self.source_system,
+            "orchestrator_workflow_instance_id": self.orchestrator_workflow_instance_id,
+            "orchestrator_step_name": self.orchestrator_step_name,
+            "attempt_number": self.attempt_number,
+            "status": self.status,
+            "total_target_count": self.total_target_count,
+            "succeeded_target_count": self.succeeded_target_count,
+            "failed_target_count": self.failed_target_count,
+            "requested_by": self.requested_by,
+            "requested_at": self.requested_at,
+            "completed_at": self.completed_at,
+            "reused_existing": self.reused_existing,
+            "item_results": [item_result.to_dict() for item_result in self.item_results],
+        }
 
 
 @dataclass(frozen=True)

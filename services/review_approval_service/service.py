@@ -39,6 +39,7 @@ from .contracts import (
     ActivationDownstreamHandoff,
     ActivationOutcome,
     ActivationState,
+    ActivationWriteBackTarget,
     ApprovedOperatingPlanSnapshot,
     ApprovedPlanProjectRecord,
     ApprovedPlanTaskRecord,
@@ -56,6 +57,15 @@ from .repository import InMemoryReviewApprovalRepository
 
 SERVICE_NAME = "Review & Approval Service"
 WORKFLOW_ORCHESTRATOR_SERVICE_NAME = "Workflow Orchestrator Service"
+WRITE_BACK_ACTION_UPDATE_TASK_FIELDS = "update_task_fields"
+WRITE_BACK_ACTION_UPDATE_PROJECT_FIELDS = "update_project_fields"
+WRITE_BACK_FIELD_ORDER = (
+    DELTA_SCOPE_ATTRIBUTE_TASK_START_DATE,
+    DELTA_SCOPE_ATTRIBUTE_TASK_DUE_DATE,
+    DELTA_SCOPE_ATTRIBUTE_MILESTONE_DATE,
+    DELTA_SCOPE_ATTRIBUTE_PROJECT_FINISH_DATE,
+    DELTA_SCOPE_ATTRIBUTE_ASSIGNED_RESOURCE_EXTERNAL_IDS,
+)
 ApprovedTaskKey = Tuple[str, str, str]
 RecommendationRefKey = Tuple[Optional[str], str]
 
@@ -1045,7 +1055,75 @@ def _build_activation_command_result(
             handoff_required=activation_state.status == ACTIVATION_STATUS_ACTIVATED,
             workflow_state=ACTIVATION_WORKFLOW_STATE_NOT_STARTED,
             workflow_instance_id=None,
+            source_snapshot_id=(
+                review_context.source_snapshot_id
+                if activation_state.status == ACTIVATION_STATUS_ACTIVATED
+                else None
+            ),
+            write_back_targets=_build_activation_write_back_targets(
+                review_context=review_context,
+                selected_delta_ids=activation_state.selected_delta_ids,
+            )
+            if activation_state.status == ACTIVATION_STATUS_ACTIVATED
+            else [],
         ),
+    )
+
+
+def _build_activation_write_back_targets(
+    review_context: ReviewContextState,
+    selected_delta_ids: List[str],
+) -> List[ActivationWriteBackTarget]:
+    selected_delta_id_set = set(selected_delta_ids)
+    write_back_targets: List[ActivationWriteBackTarget] = []
+    ordered_deltas = sorted(
+        [
+            delta
+            for delta in review_context.delta_items
+            if delta.delta_id in selected_delta_id_set
+        ],
+        key=lambda item: (
+            item.project_external_id or "",
+            item.entity_external_id,
+            item.delta_id,
+        ),
+    )
+    for delta in ordered_deltas:
+        write_back_targets.append(
+            ActivationWriteBackTarget(
+                target_id=_stable_id(
+                    "activation-write-back-target",
+                    review_context.review_context_id,
+                    delta.delta_id,
+                ),
+                delta_id=delta.delta_id,
+                entity_type=delta.entity_type,
+                entity_external_id=delta.entity_external_id,
+                entity_name=delta.entity_name,
+                project_external_id=delta.project_external_id,
+                write_back_action=_resolve_write_back_action(delta.entity_type),
+                write_back_fields=_sorted_write_back_fields(
+                    delta.delta_scope_attributes
+                ),
+            )
+        )
+    return write_back_targets
+
+
+def _resolve_write_back_action(entity_type: str) -> str:
+    if entity_type == REVIEW_DELTA_ENTITY_TYPE_PROJECT:
+        return WRITE_BACK_ACTION_UPDATE_PROJECT_FIELDS
+    return WRITE_BACK_ACTION_UPDATE_TASK_FIELDS
+
+
+def _sorted_write_back_fields(field_names: List[str]) -> List[str]:
+    field_order = {
+        field_name: index
+        for index, field_name in enumerate(WRITE_BACK_FIELD_ORDER)
+    }
+    return sorted(
+        field_names,
+        key=lambda field_name: (field_order.get(field_name, 999), field_name),
     )
 
 

@@ -162,18 +162,57 @@ class PlanningRunStartResult:
 
 
 @dataclass(frozen=True)
+class ActivationWriteBackTargetReference:
+    target_id: str
+    delta_id: str
+    entity_type: str
+    entity_external_id: str
+    entity_name: str
+    project_external_id: Optional[str]
+    write_back_action: str
+    write_back_fields: List[str]
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "target_id": self.target_id,
+            "delta_id": self.delta_id,
+            "entity_type": self.entity_type,
+            "entity_external_id": self.entity_external_id,
+            "entity_name": self.entity_name,
+            "project_external_id": self.project_external_id,
+            "write_back_action": self.write_back_action,
+            "write_back_fields": list(self.write_back_fields),
+        }
+
+
+@dataclass(frozen=True)
 class ActivationWorkflowTrigger:
     activation_command_id: str
     activation_id: str
     review_context_id: str
     approved_plan_id: str
+    source_snapshot_id: Optional[str]
+    write_back_targets: List[ActivationWriteBackTargetReference]
     requested_by: str
     requested_at: str
     idempotency_key: Optional[str] = None
     max_attempts: int = 2
 
     def to_dict(self) -> Dict[str, object]:
-        return asdict(self)
+        return {
+            "activation_command_id": self.activation_command_id,
+            "activation_id": self.activation_id,
+            "review_context_id": self.review_context_id,
+            "approved_plan_id": self.approved_plan_id,
+            "source_snapshot_id": self.source_snapshot_id,
+            "write_back_targets": [
+                target.to_dict() for target in self.write_back_targets
+            ],
+            "requested_by": self.requested_by,
+            "requested_at": self.requested_at,
+            "idempotency_key": self.idempotency_key,
+            "max_attempts": self.max_attempts,
+        }
 
 
 @dataclass(frozen=True)
@@ -183,13 +222,29 @@ class ActivationExecutionStepRequest:
     activation_id: str
     review_context_id: str
     approved_plan_id: str
+    source_snapshot_id: Optional[str]
+    write_back_targets: List[ActivationWriteBackTargetReference]
     step_name: str
     requested_by: str
     requested_at: str
     attempt_number: int
 
     def to_dict(self) -> Dict[str, object]:
-        return asdict(self)
+        return {
+            "workflow_instance_id": self.workflow_instance_id,
+            "activation_command_id": self.activation_command_id,
+            "activation_id": self.activation_id,
+            "review_context_id": self.review_context_id,
+            "approved_plan_id": self.approved_plan_id,
+            "source_snapshot_id": self.source_snapshot_id,
+            "write_back_targets": [
+                target.to_dict() for target in self.write_back_targets
+            ],
+            "step_name": self.step_name,
+            "requested_by": self.requested_by,
+            "requested_at": self.requested_at,
+            "attempt_number": self.attempt_number,
+        }
 
 
 @dataclass(frozen=True)
@@ -210,6 +265,8 @@ class ActivationWorkflowInstance:
     activation_id: str
     review_context_id: str
     approved_plan_id: str
+    source_snapshot_id: Optional[str]
+    write_back_targets: List[ActivationWriteBackTargetReference]
     current_status: str
     current_step: str
     current_attempt: int

@@ -330,14 +330,49 @@ class ActivationState:
 
 
 @dataclass(frozen=True)
+class ActivationWriteBackTarget:
+    target_id: str
+    delta_id: str
+    entity_type: str
+    entity_external_id: str
+    entity_name: str
+    project_external_id: Optional[str]
+    write_back_action: str
+    write_back_fields: List[str]
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "target_id": self.target_id,
+            "delta_id": self.delta_id,
+            "entity_type": self.entity_type,
+            "entity_external_id": self.entity_external_id,
+            "entity_name": self.entity_name,
+            "project_external_id": self.project_external_id,
+            "write_back_action": self.write_back_action,
+            "write_back_fields": list(self.write_back_fields),
+        }
+
+
+@dataclass(frozen=True)
 class ActivationDownstreamHandoff:
     owner_service: str
     handoff_required: bool
     workflow_state: str
     workflow_instance_id: Optional[str] = None
+    source_snapshot_id: Optional[str] = None
+    write_back_targets: List[ActivationWriteBackTarget] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, object]:
-        return asdict(self)
+        return {
+            "owner_service": self.owner_service,
+            "handoff_required": self.handoff_required,
+            "workflow_state": self.workflow_state,
+            "workflow_instance_id": self.workflow_instance_id,
+            "source_snapshot_id": self.source_snapshot_id,
+            "write_back_targets": [
+                target.to_dict() for target in self.write_back_targets
+            ],
+        }
 
 
 @dataclass(frozen=True)

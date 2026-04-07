@@ -18,6 +18,12 @@
 - Contract tests
 - Thin end-to-end tests
 
+Thin end-to-end golden-path coverage should verify at minimum:
+- one setup-to-activation happy path with visible async activation and bounded write-back success
+- one advisory-warning path that remains runnable
+- one dependency-safe approval-blocking path that requires connected-set handling
+- one post-activation write-back failure path that preserves approved operating plan truth
+
 ## Service-by-service focus
 
 ### API Gateway / BFF
@@ -156,3 +162,7 @@ Use canonical fixtures for:
 - reviewable-delta valid acceptance selection case
 - activation explicit-command/idempotency case
 - activation/write-back case where approved
+- write-back success case
+- write-back partial-result case
+- write-back failed-but-approved-truth-preserved case
+- write-back retry/idempotent case

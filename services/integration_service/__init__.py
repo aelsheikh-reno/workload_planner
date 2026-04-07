@@ -1,6 +1,19 @@
-"""Integration Service baseline for source intake and normalization."""
+"""Integration Service baseline for source intake, normalization, and write-back."""
 
 from .contracts import (
+    BOUND_WRITE_BACK_ACTION_UPDATE_PROJECT_FIELDS,
+    BOUND_WRITE_BACK_ACTION_UPDATE_TASK_FIELDS,
+    BOUND_WRITE_BACK_TRIGGER_STEP,
+    WRITE_BACK_ITEM_STATUS_FAILED,
+    WRITE_BACK_ITEM_STATUS_SUCCEEDED,
+    WRITE_BACK_STATUS_FAILED,
+    WRITE_BACK_STATUS_PARTIAL,
+    WRITE_BACK_STATUS_SUCCEEDED,
+    BoundedWriteBackExecutionReceipt,
+    BoundedWriteBackItemResult,
+    BoundedWriteBackRequest,
+    BoundedWriteBackResult,
+    BoundedWriteBackTarget,
     NormalizedDependencyRecord,
     NormalizedResourceExceptionRecord,
     NormalizedResourceRecord,
@@ -13,10 +26,26 @@ from .contracts import (
     SourceSetupIssueFact,
     SourceSnapshot,
 )
+from .gateways import ExternalWriteBackGateway, ExternalWriteBackGatewayError
 from .repository import InMemoryIntegrationRepository
 from .service import IntegrationService
 
 __all__ = [
+    "BOUND_WRITE_BACK_ACTION_UPDATE_PROJECT_FIELDS",
+    "BOUND_WRITE_BACK_ACTION_UPDATE_TASK_FIELDS",
+    "BOUND_WRITE_BACK_TRIGGER_STEP",
+    "WRITE_BACK_ITEM_STATUS_FAILED",
+    "WRITE_BACK_ITEM_STATUS_SUCCEEDED",
+    "WRITE_BACK_STATUS_FAILED",
+    "WRITE_BACK_STATUS_PARTIAL",
+    "WRITE_BACK_STATUS_SUCCEEDED",
+    "BoundedWriteBackExecutionReceipt",
+    "BoundedWriteBackItemResult",
+    "BoundedWriteBackRequest",
+    "BoundedWriteBackResult",
+    "BoundedWriteBackTarget",
+    "ExternalWriteBackGateway",
+    "ExternalWriteBackGatewayError",
     "IntegrationService",
     "InMemoryIntegrationRepository",
     "NormalizedDependencyRecord",

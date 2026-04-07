@@ -436,6 +436,15 @@ class S04DeltaReviewContractTests(unittest.TestCase):
             command_result["downstreamWorkflow"]["currentStep"],
             ACTIVATION_RECOMPUTATION_STEP,
         )
+        activation_gateway = workflow_orchestrator_service._activation_execution_gateway
+        self.assertEqual(
+            activation_gateway.requests[0].source_snapshot_id,
+            review_context.source_snapshot_id,
+        )
+        self.assertEqual(
+            [target.entity_external_id for target in activation_gateway.requests[0].write_back_targets],
+            ["task-rollout"],
+        )
         self.assertEqual(post_activation_contract["activation"]["status"], "activated")
         self.assertFalse(post_activation_contract["activation"]["actionAvailable"])
         self.assertEqual(

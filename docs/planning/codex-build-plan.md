@@ -124,7 +124,7 @@ Screens:
 Implementation note:
 - Activation-blocker facts and activation outcome facts are emitted by Review & Approval for later Decision Support consumption; interpreted warnings remain out of scope for this phase.
 - S04 — Delta Review remains the user-facing activation entry point after acceptance; Review & Approval owns activation business truth and Workflow Orchestrator owns downstream async workflow state.
-- The current repo baseline now covers the explicit Review & Approval activation command/result contract, valid-approved-set admission checks, idempotent re-activation handling for the same already-applied selected set, approved operating plan snapshot updates from the selected accepted deltas, and Workflow Orchestrator-owned activation workflow execution/status with deterministic downstream recomputation-first and bounded side-effect sequencing hooks.
+- The current repo baseline now covers the explicit Review & Approval activation command/result contract, valid-approved-set admission checks, idempotent re-activation handling for the same already-applied selected set, approved operating plan snapshot updates from the selected accepted deltas, Workflow Orchestrator-owned activation workflow execution/status with deterministic downstream recomputation-first and bounded side-effect sequencing hooks, and Integration-owned bounded external write-back execution/result tracking from orchestrated post-activation requests only.
 
 ## Codex task-shaping rules
 - one bounded task at a time

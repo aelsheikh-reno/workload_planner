@@ -1,0 +1,11 @@
+{
+  "completed_at": "2026-04-06T13:20:00Z",
+  "target_outcomes": {
+    "task-rollout": {
+      "status": "failed",
+      "applied_fields": [],
+      "error_code": "external_unavailable",
+      "error_message": "External system was unavailable."
+    }
+  }
+}

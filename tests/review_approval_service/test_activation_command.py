@@ -149,6 +149,14 @@ class ReviewApprovalActivationCommandTests(unittest.TestCase):
             ACTIVATION_WORKFLOW_STATE_NOT_STARTED,
         )
         self.assertIsNone(result.downstream_handoff.workflow_instance_id)
+        self.assertEqual(
+            result.downstream_handoff.source_snapshot_id,
+            review_context.source_snapshot_id,
+        )
+        self.assertEqual(
+            [target.entity_external_id for target in result.downstream_handoff.write_back_targets],
+            ["task-rollout"],
+        )
 
         current_snapshot = service.get_approved_operating_plan_snapshot(current=True)
         original_snapshot = service.get_approved_operating_plan_snapshot(
@@ -287,6 +295,17 @@ class ReviewApprovalActivationCommandTests(unittest.TestCase):
                 "status",
             ],
         )
+        self.assertEqual(
+            sorted(contract["downstream_handoff"].keys()),
+            [
+                "handoff_required",
+                "owner_service",
+                "source_snapshot_id",
+                "workflow_instance_id",
+                "workflow_state",
+                "write_back_targets",
+            ],
+        )
 
     def test_workflow_execution_is_not_owned_here(self):
         service, review_context = build_review_context(
@@ -315,6 +334,14 @@ class ReviewApprovalActivationCommandTests(unittest.TestCase):
             ACTIVATION_WORKFLOW_STATE_NOT_STARTED,
         )
         self.assertIsNone(payload["downstream_handoff"]["workflow_instance_id"])
+        self.assertEqual(
+            payload["downstream_handoff"]["source_snapshot_id"],
+            review_context.source_snapshot_id,
+        )
+        self.assertEqual(
+            [target["entity_external_id"] for target in payload["downstream_handoff"]["write_back_targets"]],
+            ["task-rollout"],
+        )
         self.assertNotIn("workflow_instance", payload)
         self.assertNotIn("workflow_status", payload)
 

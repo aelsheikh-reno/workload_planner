@@ -11,6 +11,7 @@ from services.review_approval_service import (
     ReviewApprovalService,
 )
 from services.workflow_orchestrator_service import (
+    ActivationWriteBackTargetReference,
     ActivationWorkflowTrigger,
     WorkflowOrchestratorService,
 )
@@ -332,6 +333,20 @@ def submit_s04_activation_command(
                 activation_id=result.activation_state.activation_id,
                 review_context_id=result.review_context_id,
                 approved_plan_id=result.activation_state.approved_plan_id_after,
+                source_snapshot_id=result.downstream_handoff.source_snapshot_id,
+                write_back_targets=[
+                    ActivationWriteBackTargetReference(
+                        target_id=target.target_id,
+                        delta_id=target.delta_id,
+                        entity_type=target.entity_type,
+                        entity_external_id=target.entity_external_id,
+                        entity_name=target.entity_name,
+                        project_external_id=target.project_external_id,
+                        write_back_action=target.write_back_action,
+                        write_back_fields=list(target.write_back_fields),
+                    )
+                    for target in result.downstream_handoff.write_back_targets
+                ],
                 requested_by=requested_by,
                 requested_at=requested_at,
                 idempotency_key=result.command_id,
