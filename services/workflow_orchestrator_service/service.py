@@ -1,6 +1,7 @@
 """Workflow Orchestrator baseline for planning-run and activation job state."""
 
 import hashlib
+import json
 from dataclasses import replace
 from typing import Optional
 
@@ -10,6 +11,8 @@ from .contracts import (
     ACTIVATION_RECOMPUTATION_STEP,
     ACTIVATION_SIDE_EFFECTS_STEP,
     ACTIVATION_WORKFLOW_TYPE,
+    IMPORT_SYNC_WORKFLOW_TYPE,
+    INTEGRATION_IMPORT_SYNC_STEP,
     PLANNING_ENGINE_EXECUTION_STEP,
     PLANNING_RUN_WORKFLOW_TYPE,
     STEP_STATUS_DISPATCHED,
@@ -30,6 +33,10 @@ from .contracts import (
     ActivationWorkflowStatusView,
     ActivationWorkflowTrigger,
     ActivationWriteBackTargetReference,
+    ImportSyncExecutionRequest,
+    ImportSyncStartResult,
+    ImportSyncTrigger,
+    ImportSyncWorkflowInstance,
     PlanningEngineExecutionRequest,
     PlanningRunStartResult,
     PlanningRunStatusView,
@@ -40,6 +47,8 @@ from .contracts import (
 from .gateways import (
     ActivationExecutionGateway,
     ActivationExecutionGatewayError,
+    ImportSyncExecutionGateway,
+    ImportSyncExecutionGatewayError,
     PlanningEngineGateway,
     PlanningEngineGatewayError,
 )
@@ -76,12 +85,131 @@ class WorkflowOrchestratorService:
         integration_service: IntegrationService,
         planning_engine_gateway: PlanningEngineGateway,
         repository: Optional[InMemoryWorkflowOrchestratorRepository] = None,
+        import_sync_execution_gateway: Optional[ImportSyncExecutionGateway] = None,
         activation_execution_gateway: Optional[ActivationExecutionGateway] = None,
     ) -> None:
         self._integration_service = integration_service
         self._planning_engine_gateway = planning_engine_gateway
         self._repository = repository or InMemoryWorkflowOrchestratorRepository()
+        self._import_sync_execution_gateway = import_sync_execution_gateway
         self._activation_execution_gateway = activation_execution_gateway
+
+    def start_import_sync(self, trigger: ImportSyncTrigger) -> ImportSyncStartResult:
+        self._validate_import_sync_trigger(trigger)
+
+        idempotency_key = trigger.idempotency_key or self._raw_payload_digest(
+            trigger.raw_payload
+        )
+        existing = self._repository.get_latest_import_sync_workflow_by_idempotency(
+            idempotency_key
+        )
+        if existing is not None:
+            return self._build_import_sync_start_result(
+                workflow=existing,
+                reused_existing=True,
+                handoff_request=None,
+            )
+
+        workflow = ImportSyncWorkflowInstance(
+            workflow_instance_id=self._stable_id("import-sync-workflow", idempotency_key),
+            workflow_type=IMPORT_SYNC_WORKFLOW_TYPE,
+            source_system=_raw_payload_source_system(trigger.raw_payload),
+            source_artifact_id=None,
+            source_snapshot_id=None,
+            current_status=WORKFLOW_STATUS_QUEUED,
+            current_step=INTEGRATION_IMPORT_SYNC_STEP,
+            current_attempt=1,
+            max_attempts=trigger.max_attempts,
+            requested_by=trigger.requested_by,
+            requested_at=trigger.requested_at,
+            idempotency_key=idempotency_key,
+            last_transition_at=trigger.requested_at,
+            completed_at=None,
+            last_error_code=None,
+            last_error_message=None,
+        )
+        step = WorkflowStepInstance(
+            workflow_instance_id=workflow.workflow_instance_id,
+            step_name=INTEGRATION_IMPORT_SYNC_STEP,
+            status=STEP_STATUS_PENDING,
+            attempt_number=1,
+            last_updated_at=trigger.requested_at,
+        )
+        self._repository.save_import_sync_workflow(workflow)
+        self._repository.save_import_sync_step(step)
+        self._repository.append_import_sync_transition(
+            workflow_instance_id=workflow.workflow_instance_id,
+            from_status=None,
+            to_status=WORKFLOW_STATUS_QUEUED,
+            occurred_at=trigger.requested_at,
+            reason="import_sync_requested",
+        )
+
+        handoff_request = ImportSyncExecutionRequest(
+            workflow_instance_id=workflow.workflow_instance_id,
+            source_system=workflow.source_system,
+            raw_payload=trigger.raw_payload,
+            requested_by=workflow.requested_by,
+            requested_at=workflow.requested_at,
+            attempt_number=workflow.current_attempt,
+        )
+
+        try:
+            receipt = self._submit_import_sync(handoff_request)
+        except ImportSyncExecutionGatewayError as error:
+            failed_workflow = replace(
+                workflow,
+                current_status=WORKFLOW_STATUS_FAILED,
+                last_transition_at=trigger.requested_at,
+                completed_at=trigger.requested_at,
+                last_error_code=error.code,
+                last_error_message=error.message,
+            )
+            failed_step = replace(
+                step,
+                status=STEP_STATUS_FAILED,
+                last_updated_at=trigger.requested_at,
+            )
+            self._repository.save_import_sync_workflow(failed_workflow)
+            self._repository.save_import_sync_step(failed_step)
+            self._repository.append_import_sync_transition(
+                workflow_instance_id=workflow.workflow_instance_id,
+                from_status=WORKFLOW_STATUS_QUEUED,
+                to_status=WORKFLOW_STATUS_FAILED,
+                occurred_at=trigger.requested_at,
+                reason="integration_import_sync_handoff_failed",
+            )
+            return self._build_import_sync_start_result(
+                workflow=failed_workflow,
+                reused_existing=False,
+                handoff_request=handoff_request,
+            )
+
+        dispatched_workflow = replace(
+            workflow,
+            current_status=WORKFLOW_STATUS_DISPATCHED,
+            last_transition_at=receipt.accepted_at,
+        )
+        dispatched_step = replace(
+            step,
+            status=STEP_STATUS_DISPATCHED,
+            last_updated_at=receipt.accepted_at,
+            handoff_id=receipt.handoff_id,
+        )
+        self._repository.save_import_sync_workflow(dispatched_workflow)
+        self._repository.save_import_sync_step(dispatched_step)
+        self._repository.append_import_sync_transition(
+            workflow_instance_id=workflow.workflow_instance_id,
+            from_status=WORKFLOW_STATUS_QUEUED,
+            to_status=WORKFLOW_STATUS_DISPATCHED,
+            occurred_at=receipt.accepted_at,
+            reason="integration_import_sync_handoff_accepted",
+        )
+        return self._build_import_sync_start_result(
+            workflow=dispatched_workflow,
+            reused_existing=False,
+            handoff_request=handoff_request,
+        )
 
     def start_planning_run(self, trigger: PlanningRunTrigger) -> PlanningRunStartResult:
         self._validate_trigger(trigger)
@@ -762,6 +890,9 @@ class WorkflowOrchestratorService:
     def list_workflow_transitions(self, workflow_instance_id: str):
         return self._repository.list_transitions(workflow_instance_id)
 
+    def list_import_sync_transitions(self, workflow_instance_id: str):
+        return self._repository.list_import_sync_transitions(workflow_instance_id)
+
     def list_activation_workflow_transitions(self, workflow_instance_id: str):
         return self._repository.list_activation_transitions(workflow_instance_id)
 
@@ -853,6 +984,16 @@ class WorkflowOrchestratorService:
                 "missing_planning_context_key",
                 "planning_context_key is required for idempotent planning-run orchestration.",
             )
+
+    def _validate_import_sync_trigger(self, trigger: ImportSyncTrigger) -> None:
+        if trigger.max_attempts < 1:
+            raise ValueError("max_attempts must be at least 1.")
+        if not trigger.requested_by:
+            raise ValueError("requested_by is required for import/sync orchestration.")
+        if not trigger.requested_at:
+            raise ValueError("requested_at is required for import/sync orchestration.")
+        if not isinstance(trigger.raw_payload, dict) or not trigger.raw_payload:
+            raise ValueError("raw_payload must be a non-empty object.")
 
     def _validate_activation_trigger(self, trigger: ActivationWorkflowTrigger) -> None:
         if trigger.max_attempts < 1:
@@ -977,6 +1118,13 @@ class WorkflowOrchestratorService:
         assert self._activation_execution_gateway is not None
         return self._activation_execution_gateway.submit_step(request)
 
+    def _submit_import_sync(self, request: ImportSyncExecutionRequest):
+        if self._import_sync_execution_gateway is None:
+            raise ValueError(
+                "An import/sync execution gateway is required before starting import/sync."
+            )
+        return self._import_sync_execution_gateway.submit_import_sync(request)
+
     def _assert_status(self, current_status: str, allowed_statuses) -> None:
         if current_status not in allowed_statuses:
             raise WorkflowTransitionError(
@@ -988,3 +1136,36 @@ class WorkflowOrchestratorService:
         joined = "::".join(parts)
         digest = hashlib.sha1(joined.encode("utf-8")).hexdigest()[:16]
         return "%s_%s" % (prefix, digest)
+
+    def _build_import_sync_start_result(
+        self,
+        workflow: ImportSyncWorkflowInstance,
+        reused_existing: bool,
+        handoff_request: Optional[ImportSyncExecutionRequest],
+    ) -> ImportSyncStartResult:
+        source_readiness = None
+        if workflow.source_snapshot_id is not None:
+            readiness = self._integration_service.get_source_readiness(
+                workflow.source_snapshot_id
+            )
+            if readiness is not None:
+                source_readiness = readiness.to_dict()
+        return ImportSyncStartResult(
+            workflow_instance=workflow,
+            reused_existing=reused_existing,
+            handoff_request=handoff_request,
+            source_snapshot_id=workflow.source_snapshot_id,
+            source_artifact_id=workflow.source_artifact_id,
+            source_readiness=source_readiness,
+        )
+
+    def _raw_payload_digest(self, raw_payload) -> str:
+        payload_text = json.dumps(raw_payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha1(payload_text.encode("utf-8")).hexdigest()
+
+
+def _raw_payload_source_system(raw_payload) -> Optional[str]:
+    source_system = raw_payload.get("source_system")
+    if isinstance(source_system, str) and source_system:
+        return source_system
+    return None

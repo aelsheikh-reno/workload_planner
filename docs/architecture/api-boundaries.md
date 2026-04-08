@@ -12,6 +12,40 @@
   - downstream recomputation after activation
   - bounded write-back/status sync
 
+## Current BFF transport baseline
+The current repo baseline now exposes a minimal real frontend-consumable API Gateway / BFF transport surface over the existing screen builders and command adapters. The baseline is intentionally thin:
+- the transport layer wraps existing BFF screen-composition builders and command-routing adapters without moving business logic into the BFF
+- screen routes return the existing screen-facing view-model payloads unchanged
+- lightweight command routes return the existing BFF command-adapter payloads or downstream service contracts unchanged
+- transport errors return a JSON error envelope with `error.code` and `error.message`
+- the baseline server may be started locally with `python3 -m services.api_gateway_bff.server`
+- the local server CLI defaults to a seeded `local-demo` runtime for browser-usable MVP startup; `--runtime empty` remains available for an unseeded in-memory boot
+
+Current transport routes:
+- `GET /health`
+- `GET /api/screens/s01/portfolio`
+- `GET /api/drawers/d01/task-drilldown`
+- `GET /api/screens/s02/setup`
+- `POST /api/screens/s02/import-sync`
+- `POST /api/screens/s02/planning-runs`
+- `GET /api/screens/s02/planning-runs/status`
+- `GET /api/screens/s03/resource-detail`
+- `GET /api/screens/s03/recommendation-context`
+- `POST /api/screens/s03/recommendation-context/refresh`
+- `GET /api/screens/s04/delta-review`
+- `POST /api/screens/s04/review-context`
+- `POST /api/screens/s04/acceptance-selection`
+- `GET /api/modals/m01/connected-change-set`
+- `POST /api/modals/m01/connected-change-set/acceptance-selection`
+- `POST /api/screens/s04/activation`
+- `GET /api/screens/s04/activation-status`
+- `GET /api/screens/s05/warnings-workspace`
+
+Current transport rules:
+- route handlers remain transport-focused and delegate to the existing owning services and BFF composition builders only
+- current transport exposure is limited to the frontend-unblocking MVP surface above; broader documented BFF flows such as source import/sync status transport remain follow-on transport work
+- BFF transport does not rename or reinterpret downstream business-state payloads beyond the existing BFF screen and command adapter contracts
+
 ## Command/query ownership
 
 ### Integration Service
@@ -141,6 +175,12 @@ Contract rules:
 - downstream async recomputation or workflow execution is not created here; the command result exposes initial handoff metadata only and Workflow Orchestrator remains the owner of execution state and later status progression
 - IDs, ordering, and connected-set membership must remain deterministic for identical draft and approved inputs
 
+Review-context generation transport baseline:
+- the BFF may admit S04 review-context generation/refresh by resolving a saved Planning Engine execution result from `planningRunId`
+- the BFF then delegates the actual review-context generation to Review & Approval using the current approved operating plan by default, or an explicit `approvedPlanId` when supplied
+- the transport response returns the Review & Approval review-context contract unchanged
+- S04 read composition remains a separate read route; this generation route exists only to create or refresh the review context so the frontend does not depend on a pre-existing `reviewContextId`
+
 ### Decision Support Service
 Commands:
 - refresh warning/trust interpretation
@@ -167,6 +207,28 @@ Queries:
 - planning-run status for S02 — Planning Setup composition
 - activation workflow status for S04 — Delta Review composition
 - workflow history/log
+
+## Import-sync workflow baseline
+The Workflow Orchestrator provides the import/sync start baseline for S02 — Planning Setup. The current baseline contract covers:
+- import/sync admission from a raw source payload plus request metadata
+- Orchestrator-owned workflow/job state for the import/sync start command
+- a stable handoff request to the Integration-owned import/sync execution seam
+- Integration-owned source normalization and readiness evaluation after downstream execution progresses
+- optional normalized source snapshot/reference fields only when they are already available on the referenced workflow
+
+Import/sync start contract:
+- workflow_instance
+- reused_existing
+- handoff_request
+- source_snapshot_id when already available on the referenced workflow
+- source_artifact_id when already available on the referenced workflow
+- source_readiness when a normalized source snapshot already exists for the referenced workflow
+
+Lifecycle rules:
+- BFF routes the command only and does not normalize source data
+- Workflow Orchestrator owns the import/sync workflow/job state only
+- Integration Service remains the owner of source intake, normalization, artifacts, mappings, and source readiness
+- the current baseline exposes start-admission and Integration handoff only; dedicated import/sync status transport and completion exposure remain follow-on work
 
 ## Planning-run workflow baseline
 The Workflow Orchestrator provides the planning-run lifecycle baseline for S02 — Planning Setup. The baseline contract covers:
@@ -706,6 +768,7 @@ The API Gateway / BFF owns the first stable S04 — Delta Review and M01 — Con
 - draft-vs-approved review context projection from Review & Approval reviewable deltas
 - grouped and item-level delta review shaping for S04 only
 - acceptance-state display and explicit selection/deselection command routing through Review & Approval only
+- M01 connected-set acceptance command routing through Review & Approval only
 - activation-state display and explicit activation command routing through Review & Approval only
 - explicit activation entry-point shaping after acceptance without moving activation business truth or downstream workflow ownership into the BFF
 - blocked isolated-acceptance projection with M01 launch context when connected-set handling is required
@@ -775,10 +838,12 @@ Composition rules:
 - S02 — Planning Setup → get setup warning/trust state → BFF → Decision Support
 - S03 — Resource Detail → get S03 — Resource Detail data → BFF → Planning Engine, Decision Support
 - S03 — Resource Detail → get/refresh recommendations → BFF → Decision Support
+- S04 — Delta Review → generate/refresh review context → BFF → Planning Engine read, Review & Approval
 - S04 — Delta Review → get review warning/trust state → BFF → Decision Support
 - S04 — Delta Review → get deltas → BFF → Review & Approval
 - S04 — Delta Review → record acceptance → BFF → Review & Approval
 - M01 — Connected Change Set Modal → resolve connected set → BFF → Review & Approval
+- M01 — Connected Change Set Modal → record connected-set acceptance → BFF → Review & Approval
 - S04 — Delta Review → activate approved changes → BFF → Review & Approval, then async downstream via Workflow Orchestrator
 - S05 — Planning Warnings Workspace → get S05 — Planning Warnings Workspace data → BFF → Decision Support
 

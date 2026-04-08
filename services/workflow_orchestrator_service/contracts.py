@@ -6,6 +6,8 @@ from typing import Dict, List, Optional
 
 PLANNING_RUN_WORKFLOW_TYPE = "planning_run"
 PLANNING_ENGINE_EXECUTION_STEP = "planning_engine_execution"
+IMPORT_SYNC_WORKFLOW_TYPE = "import_sync"
+INTEGRATION_IMPORT_SYNC_STEP = "integration_import_sync"
 ACTIVATION_WORKFLOW_TYPE = "activation_post_commit"
 ACTIVATION_RECOMPUTATION_STEP = "activation_recomputation"
 ACTIVATION_SIDE_EFFECTS_STEP = "activation_side_effect_sequencing"
@@ -48,6 +50,100 @@ class PlanningRunTrigger:
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class ImportSyncTrigger:
+    raw_payload: Dict[str, object]
+    requested_by: str
+    requested_at: str
+    idempotency_key: Optional[str] = None
+    max_attempts: int = 1
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "raw_payload": dict(self.raw_payload),
+            "requested_by": self.requested_by,
+            "requested_at": self.requested_at,
+            "idempotency_key": self.idempotency_key,
+            "max_attempts": self.max_attempts,
+        }
+
+
+@dataclass(frozen=True)
+class ImportSyncExecutionRequest:
+    workflow_instance_id: str
+    source_system: Optional[str]
+    raw_payload: Dict[str, object]
+    requested_by: str
+    requested_at: str
+    attempt_number: int
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "workflow_instance_id": self.workflow_instance_id,
+            "source_system": self.source_system,
+            "raw_payload": dict(self.raw_payload),
+            "requested_by": self.requested_by,
+            "requested_at": self.requested_at,
+            "attempt_number": self.attempt_number,
+        }
+
+
+@dataclass(frozen=True)
+class ImportSyncExecutionReceipt:
+    handoff_id: str
+    accepted_at: str
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ImportSyncWorkflowInstance:
+    workflow_instance_id: str
+    workflow_type: str
+    source_system: Optional[str]
+    source_artifact_id: Optional[str]
+    source_snapshot_id: Optional[str]
+    current_status: str
+    current_step: str
+    current_attempt: int
+    max_attempts: int
+    requested_by: str
+    requested_at: str
+    idempotency_key: Optional[str]
+    last_transition_at: str
+    completed_at: Optional[str]
+    last_error_code: Optional[str]
+    last_error_message: Optional[str]
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ImportSyncStartResult:
+    workflow_instance: ImportSyncWorkflowInstance
+    reused_existing: bool
+    handoff_request: Optional[ImportSyncExecutionRequest]
+    source_snapshot_id: Optional[str]
+    source_artifact_id: Optional[str]
+    source_readiness: Optional[Dict[str, object]]
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "workflow_instance": self.workflow_instance.to_dict(),
+            "reused_existing": self.reused_existing,
+            "handoff_request": None
+            if self.handoff_request is None
+            else self.handoff_request.to_dict(),
+            "source_snapshot_id": self.source_snapshot_id,
+            "source_artifact_id": self.source_artifact_id,
+            "source_readiness": None
+            if self.source_readiness is None
+            else dict(self.source_readiness),
+        }
 
 
 @dataclass(frozen=True)

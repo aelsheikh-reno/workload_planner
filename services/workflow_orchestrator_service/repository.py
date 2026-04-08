@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from .contracts import (
     ACTIVE_WORKFLOW_STATUSES,
     ActivationWorkflowInstance,
+    ImportSyncWorkflowInstance,
     PlanningRunWorkflowInstance,
     WorkflowStepInstance,
     WorkflowTransitionRecord,
@@ -19,6 +20,12 @@ class InMemoryWorkflowOrchestratorRepository:
         self._workflows_by_id: Dict[str, PlanningRunWorkflowInstance] = {}
         self._steps_by_workflow_id: Dict[str, WorkflowStepInstance] = {}
         self._transitions_by_workflow_id: Dict[str, List[WorkflowTransitionRecord]] = {}
+        self._import_sync_workflow_order: List[str] = []
+        self._import_sync_workflows_by_id: Dict[str, ImportSyncWorkflowInstance] = {}
+        self._import_sync_steps_by_workflow_id: Dict[str, WorkflowStepInstance] = {}
+        self._import_sync_transitions_by_workflow_id: Dict[
+            str, List[WorkflowTransitionRecord]
+        ] = {}
         self._activation_workflow_order: List[str] = []
         self._activation_workflows_by_id: Dict[str, ActivationWorkflowInstance] = {}
         self._activation_steps_by_workflow_id: Dict[str, Dict[str, WorkflowStepInstance]] = {}
@@ -112,6 +119,60 @@ class InMemoryWorkflowOrchestratorRepository:
 
     def list_transitions(self, workflow_instance_id: str) -> List[WorkflowTransitionRecord]:
         return list(self._transitions_by_workflow_id.get(workflow_instance_id, []))
+
+    def save_import_sync_workflow(self, workflow: ImportSyncWorkflowInstance) -> None:
+        if workflow.workflow_instance_id not in self._import_sync_workflows_by_id:
+            self._import_sync_workflow_order.append(workflow.workflow_instance_id)
+        self._import_sync_workflows_by_id[workflow.workflow_instance_id] = workflow
+
+    def get_import_sync_workflow(
+        self, workflow_instance_id: str
+    ) -> Optional[ImportSyncWorkflowInstance]:
+        return self._import_sync_workflows_by_id.get(workflow_instance_id)
+
+    def get_latest_import_sync_workflow_by_idempotency(
+        self, idempotency_key: str
+    ) -> Optional[ImportSyncWorkflowInstance]:
+        for workflow_instance_id in reversed(self._import_sync_workflow_order):
+            workflow = self._import_sync_workflows_by_id[workflow_instance_id]
+            if workflow.idempotency_key == idempotency_key:
+                return workflow
+        return None
+
+    def save_import_sync_step(self, step: WorkflowStepInstance) -> None:
+        self._import_sync_steps_by_workflow_id[step.workflow_instance_id] = step
+
+    def get_import_sync_step(
+        self, workflow_instance_id: str
+    ) -> Optional[WorkflowStepInstance]:
+        return self._import_sync_steps_by_workflow_id.get(workflow_instance_id)
+
+    def append_import_sync_transition(
+        self,
+        workflow_instance_id: str,
+        from_status: Optional[str],
+        to_status: str,
+        occurred_at: str,
+        reason: str,
+    ) -> WorkflowTransitionRecord:
+        existing = self._import_sync_transitions_by_workflow_id.setdefault(
+            workflow_instance_id, []
+        )
+        record = WorkflowTransitionRecord(
+            workflow_instance_id=workflow_instance_id,
+            transition_index=len(existing) + 1,
+            from_status=from_status,
+            to_status=to_status,
+            occurred_at=occurred_at,
+            reason=reason,
+        )
+        existing.append(record)
+        return record
+
+    def list_import_sync_transitions(
+        self, workflow_instance_id: str
+    ) -> List[WorkflowTransitionRecord]:
+        return list(self._import_sync_transitions_by_workflow_id.get(workflow_instance_id, []))
 
     def save_activation_workflow(self, workflow: ActivationWorkflowInstance) -> None:
         if workflow.workflow_instance_id not in self._activation_workflows_by_id:

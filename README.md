@@ -58,3 +58,24 @@ Use these docs in this order:
 Screens are not epics.
 Services are not epics.
 When both product epics and services appear in an artifact, include traceability.
+
+## Local MVP Run
+The repo now includes a seeded local runtime so the current MVP flow can be used in-browser without bypassing the real BFF transport.
+
+Quick start:
+1. From the repo root, run `./scripts/run_local_mvp.sh`
+2. Open the printed frontend URL, usually `http://127.0.0.1:5173`
+3. The seeded runtime starts with:
+   - a normalized source snapshot
+   - a completed planning run for `context::frontend-shell`
+   - a current approved operating plan snapshot
+   - a saved `S04` review context that exposes `M01`
+   - seeded `S05` warning/trust workspace data
+
+Useful local notes:
+- The BFF server defaults to a seeded `local-demo` runtime when started with `python3 -m services.api_gateway_bff.server`
+- `./scripts/run_local_mvp.sh` will use the requested frontend and BFF ports when available and otherwise move each service to the next open local port
+- The frontend continues to proxy `/api` and `/health` to the launched BFF target
+- The browser-shell Reset button clears frontend-held context only
+- Stopping and restarting the BFF resets the seeded in-memory backend state
+- `S02` import/sync remains admission-and-handoff only in the current MVP transport; the seeded snapshot exists so the local browser flow is still runnable end to end

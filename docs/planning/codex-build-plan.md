@@ -63,6 +63,7 @@ Screens:
 Current baseline note:
 - The current repo baseline now covers deterministic draft scheduling and allocation outputs inside Planning Engine plus the Workflow Orchestrator handoff adapter into Planning Engine execution.
 - The current repo baseline now covers S01 — Portfolio Swimlane Home and D01 — Swimlane Task Drill-Down Drawer BFF composition over Planning Engine daily/draft/diagnostic outputs, including weekly roll-up derived from daily swimlane segments only.
+- The current repo baseline now also exposes a minimal real API Gateway / BFF transport surface for frontend consumption of S01, S02, S03, S04, M01, and S05 payloads plus the current planning-run, acceptance-selection, recommendation-refresh, and activation command/status seams without moving ownership out of downstream services.
 
 ### Phase 4 — Diagnostics, warnings, and recommendation scaffolding
 Goal:

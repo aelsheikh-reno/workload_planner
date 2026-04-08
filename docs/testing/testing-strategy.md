@@ -27,6 +27,8 @@ Thin end-to-end golden-path coverage should verify at minimum:
 ## Service-by-service focus
 
 ### API Gateway / BFF
+- frontend-consumable transport route existence and error handling
+- WSGI/app routing over the minimal MVP frontend-facing API surface
 - screen payload composition
 - permission-aware shaping
 - command routing
@@ -46,6 +48,7 @@ Thin end-to-end golden-path coverage should verify at minimum:
 - S05 blocking/advisory/trust-limited presentation without warning-ownership drift
 - refresh/restricted screen-state shaping where surfaced
 - no silent loss of warnings/recommendations/deltas/blockers
+- transport wrappers stay thin and do not re-implement downstream business rules
 
 ### Workflow Orchestrator Service
 - workflow lifecycle progression

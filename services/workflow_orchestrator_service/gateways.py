@@ -3,6 +3,8 @@
 from .contracts import (
     ActivationExecutionStepReceipt,
     ActivationExecutionStepRequest,
+    ImportSyncExecutionReceipt,
+    ImportSyncExecutionRequest,
     PlanningEngineExecutionReceipt,
     PlanningEngineExecutionRequest,
 )
@@ -23,6 +25,24 @@ class PlanningEngineGateway:
     def submit_planning_run(
         self, request: PlanningEngineExecutionRequest
     ) -> PlanningEngineExecutionReceipt:
+        raise NotImplementedError
+
+
+class ImportSyncExecutionGatewayError(Exception):
+    """Raised when Integration import/sync handoff is rejected or unavailable."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class ImportSyncExecutionGateway:
+    """Stable contract boundary between Workflow Orchestrator and Integration."""
+
+    def submit_import_sync(
+        self, request: ImportSyncExecutionRequest
+    ) -> ImportSyncExecutionReceipt:
         raise NotImplementedError
 
 
