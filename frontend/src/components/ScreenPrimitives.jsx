@@ -1,3 +1,23 @@
+import { useEffect, useRef } from "react";
+
+export function Toast({ message, tone = "good", onDismiss }) {
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    timerRef.current = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(timerRef.current);
+  }, [onDismiss]);
+
+  return (
+    <div className={`toast toast--${tone}`} role="status">
+      <span>{message}</span>
+      <button className="toast__dismiss" onClick={onDismiss} type="button" aria-label="Dismiss">
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export function ScreenHeader({ eyebrow, title, description, actions }) {
   return (
     <header className="screen-header">

@@ -38,29 +38,29 @@ export function toneForScreenState(screenState) {
 export function messageForScreenState(screenState) {
   switch (screenState) {
     case "missing":
-      return "No saved context is attached yet. Use the relevant upstream screen action to continue.";
+      return "No data found. Complete the Setup steps first, then return here.";
     case "no_data":
-      return "This screen has no saved data in the current context yet.";
+      return "No data available yet. Run a capacity analysis from Setup to populate this view.";
     case "unavailable":
-      return "The referenced context could not be resolved from the current saved planning data.";
+      return "The requested data could not be found. Try refreshing or check your Setup.";
     case "blocked":
-      return "This surface is currently blocked by an approved blocker condition.";
+      return "This view is blocked. Resolve the indicated issues before continuing.";
     case "blocked_isolated_acceptance":
-      return "Isolated acceptance is unsafe here. Use the connected-set flow before continuing.";
+      return "This change must be handled together with related changes. Use the 'Related Changes' button.";
     case "warning_heavy":
-      return "This view is available, but warning density is high and should be reviewed carefully.";
+      return "This view is available, but there are several warnings that should be reviewed.";
     case "access_restricted":
-      return "Access is restricted for the current user or scope.";
+      return "You do not have access to this content.";
     case "no_warnings":
-      return "No interpreted warnings or trust-limited signals are active in the current scope.";
+      return "No warnings or trust issues are active in the current scope.";
     case "no_actionable_recommendation":
-      return "Diagnostics are available, but there are currently no actionable recommendation candidates.";
+      return "No actionable recommendations are available at this time.";
     case "indicator_present":
-      return "Planning indicators are present in the current view.";
+      return "Planning indicators are present. Review the highlighted items below.";
     case "loading":
-      return "The latest state is loading.";
+      return "Loading latest data…";
     default:
-      return "The current view is available.";
+      return "This view is ready.";
   }
 }
 

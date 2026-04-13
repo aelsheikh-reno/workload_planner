@@ -1,109 +1,117 @@
-import { useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
-const SCREEN_LINKS = [
-  { to: "/s01", label: "S01 Portfolio" },
-  { to: "/s02", label: "S02 Planning Setup" },
-  { to: "/s03", label: "S03 Resource Detail" },
-  { to: "/s04", label: "S04 Delta Review" },
-  { to: "/s05", label: "S05 Warnings" },
+const NAV_LINKS = [
+  { to: "/",        label: "Projects",  icon: "\u25A6" },
+  { to: "/import",  label: "Import",    icon: "\u2191" },
+  { to: "/members", label: "Team",      icon: "\u25CE" },
+  { to: "/time-off",label: "Time Off",  icon: "\u25F7" },
+  { to: "/settings",label: "Settings",  icon: "\u2699" },
 ];
 
 function StatusPill({ tone, label }) {
   return <span className={`status-pill status-pill--${tone}`}>{label}</span>;
 }
 
-export function ShellLayout({
-  children,
-  health,
-  shellState,
-  resetShellState,
-}) {
+export function ShellLayout({ children, health, currentUser, onSignOut }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sidebar_collapsed") === "true");
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar_collapsed", String(next));
+      return next;
+    });
+  }
+
+  function handleSignOut() {
+    localStorage.removeItem("float_token");
+    localStorage.removeItem("float_user");
+    onSignOut?.();
+    navigate("/login");
+  }
+
+  function isActive(to) {
+    if (to === "/") return location.pathname === "/";
+    return location.pathname.startsWith(to);
+  }
 
   return (
-    <div className="shell">
+    <div className={`shell${collapsed ? " shell--collapsed" : ""}`}>
       <aside className="shell__rail">
-        <div className="brand-card">
-          <p className="eyebrow">Capacity-Aware Execution Planner</p>
-          <h1>MVP Shell</h1>
-          <p className="supporting-text">
-            Real screen routing over the live API Gateway / BFF transport.
-          </p>
-          <div className="health-row">
-            <StatusPill
-              tone={health.status === "ok" ? "good" : health.status === "error" ? "bad" : "muted"}
-              label={
-                health.status === "ok"
-                  ? "BFF reachable"
-                  : health.status === "error"
-                    ? "BFF unavailable"
-                    : "Checking BFF"
-              }
-            />
+        {!collapsed && (
+          <div className="brand-card">
+            <p className="eyebrow">Resource Planner</p>
+            <h1>Scheduler</h1>
+            <div className="health-row">
+              <StatusPill
+                tone={
+                  health.status === "ok"
+                    ? "good"
+                    : health.status === "error"
+                      ? "bad"
+                      : "muted"
+                }
+                label={
+                  health.status === "ok"
+                    ? "Connected"
+                    : health.status === "error"
+                      ? "Disconnected"
+                      : "Connecting\u2026"
+                }
+              />
+            </div>
           </div>
-        </div>
+        )}
 
-        <nav className="nav-card" aria-label="Approved screens">
-          <p className="section-label">Screens</p>
+        <nav className="nav-card" aria-label="Main navigation">
           <div className="nav-links">
-            {SCREEN_LINKS.map((link) => (
-              <div
-                aria-current={location.pathname === link.to ? "page" : undefined}
-                className={location.pathname === link.to ? "nav-link nav-link--active" : "nav-link"}
+            {NAV_LINKS.map((link) => (
+              <Link
+                aria-current={isActive(link.to) ? "page" : undefined}
+                className={isActive(link.to) ? "nav-link nav-link--active" : "nav-link"}
                 key={link.to}
+                to={link.to}
+                title={collapsed ? link.label : undefined}
               >
-                {link.label}
-              </div>
+                <span className="nav-link__icon">{link.icon}</span>
+                {!collapsed && link.label}
+              </Link>
             ))}
           </div>
+          <button
+            className="ghost-button"
+            onClick={toggleCollapsed}
+            type="button"
+            style={{
+              padding: "8px", textAlign: "center",
+              fontSize: "1rem", borderTop: "1px solid var(--line)",
+              marginTop: "4px", width: "100%",
+            }}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? "\u276F" : "\u276E"}
+          </button>
         </nav>
+
+        {!collapsed && currentUser ? (
+          <div className="user-card">
+            <div className="user-card__info">
+              <strong>{currentUser.display_name}</strong>
+              <span className={`role-badge role-badge--${currentUser.role}`}>
+                {currentUser.role === "manager" ? "Manager" : "Member"}
+              </span>
+            </div>
+            <button className="ghost-button" onClick={handleSignOut} type="button">
+              Sign out
+            </button>
+          </div>
+        ) : null}
       </aside>
 
       <main className="shell__main">{children}</main>
-
-      <aside className="shell__context">
-        <div className="context-card">
-          <div className="context-card__header">
-            <div>
-              <p className="section-label">Shared context</p>
-              <h2>Active planning context</h2>
-            </div>
-            <button className="secondary-button" onClick={resetShellState} type="button">
-              Reset
-            </button>
-          </div>
-
-          <div className="context-summary">
-            <p className="section-label">Context carried between screens</p>
-            <ul>
-              <li>
-                Source readiness: {shellState.sourceSnapshotId ? "saved snapshot attached" : "no snapshot attached"}
-              </li>
-              <li>
-                Planning run: {shellState.planningRunId ? "draft planning run attached" : "no planning run attached"}
-              </li>
-              <li>
-                Resource focus: {shellState.resourceExternalId || "none selected"}
-              </li>
-              <li>
-                Selected window: {shellState.selectedDate || shellState.selectedWeekStartDate || "not set"}
-              </li>
-              <li>
-                Review context: {shellState.reviewContextId ? "review context attached" : "no review context attached"}
-              </li>
-              <li>
-                Review origin: {shellState.reviewOriginScreenId || "not set"}
-              </li>
-              <li>
-                Warning origin: {shellState.warningOriginScreenId || "not set"}
-              </li>
-            </ul>
-            <p className="supporting-text">
-              Use the screen-owned actions to advance setup, diagnosis, review, and warning navigation. The shell only preserves the active context.
-            </p>
-          </div>
-        </div>
-      </aside>
     </div>
   );
 }

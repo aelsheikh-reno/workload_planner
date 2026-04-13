@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { nowIsoString, requestJson } from "../api";
+import { Toast } from "../components/ScreenPrimitives";
 import {
   ErrorCard,
   LoadingSkeleton,
@@ -18,6 +19,18 @@ import {
   routeForScreenId,
   toneForScreenState,
 } from "../utils";
+
+const ATTRIBUTE_LABELS = {
+  task_start_date: "Task Start Date",
+  task_due_date: "Task Due Date",
+  milestone_date: "Milestone Date",
+  project_finish_date: "Project Finish Date",
+  assigned_resource_external_ids: "Assigned Resources",
+};
+
+function friendlyAttribute(name) {
+  return ATTRIBUTE_LABELS[name] || name;
+}
 
 function M01Modal({
   planningContextKey,
@@ -57,18 +70,18 @@ function M01Modal({
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <section className="modal-card" aria-label="M01 modal">
+      <section className="modal-card" aria-label="Connected Changes">
         <div className="drawer-header">
           <div>
-            <p className="eyebrow">M01</p>
-            <h3>Connected Change Set Modal</h3>
+            <p className="eyebrow">Related Changes</p>
+            <h3>Connected Change Set</h3>
           </div>
           <button className="secondary-button" onClick={onClose} type="button">
             Close
           </button>
         </div>
 
-        {modal.loading ? <LoadingSkeleton label="Loading connected set." /> : null}
+        {modal.loading ? <LoadingSkeleton label="Loading connected changes…" /> : null}
         {modal.error ? <ErrorCard error={modal.error} onRetry={modal.reload} /> : null}
         {commandState.error ? <ErrorCard error={commandState.error} /> : null}
         {modal.data ? (
@@ -81,32 +94,30 @@ function M01Modal({
               }
               tone={toneForScreenState(modal.data.viewState.screenState)}
             />
-            <SectionCard title="Requested delta">
+            <SectionCard title="Requested Change">
               <div className="summary-card">
-                <span>Entity</span>
+                <span>Item</span>
                 <strong>{formatValue(modal.data.requestedDelta?.entityName)}</strong>
-                <small>{formatValue(modal.data.requestedDelta?.deltaId)}</small>
               </div>
             </SectionCard>
             <SectionCard
-              title="Connected set"
+              title="Related Changes"
               subtitle={`${formatCountLabel(
                 modal.data.connectedSet?.memberItems?.length ?? 0,
-                "member item",
-              )}`}
+                "related change",
+              )} — these must be handled together`}
             >
               <div className="card-grid">
                 {modal.data.connectedSet?.memberItems?.length ? (
                   modal.data.connectedSet.memberItems.map((item) => (
                     <article className="delta-card" key={item.deltaId}>
                       <strong>{item.entityName}</strong>
-                      <small>{item.deltaId}</small>
                     </article>
                   ))
                 ) : (
                   <div className="summary-card">
-                    <span>No connected set required</span>
-                    <strong>This delta is already safe to handle directly.</strong>
+                    <span>No related changes</span>
+                    <strong>This change can be handled independently.</strong>
                   </div>
                 )}
               </div>
@@ -117,7 +128,7 @@ function M01Modal({
                   onClick={() => handleConnectedSetSelection(true)}
                   type="button"
                 >
-                  {commandState.loading ? "Applying…" : "Select connected set"}
+                  {commandState.loading ? "Applying…" : "Accept All Related Changes"}
                 </button>
                 <button
                   className="secondary-button"
@@ -125,7 +136,7 @@ function M01Modal({
                   onClick={() => handleConnectedSetSelection(false)}
                   type="button"
                 >
-                  Deselect connected set
+                  Reject All
                 </button>
               </div>
             </SectionCard>
@@ -153,6 +164,8 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
     error: null,
   });
   const [modalDeltaId, setModalDeltaId] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [toast, setToast] = useState(null);
 
   const review = useRouteData("/api/screens/s04/delta-review", {
     query: {
@@ -173,19 +186,10 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
       return [];
     }
     return [
-      { label: "Total deltas", value: formatValue(review.data.deltaSummary.totalDeltaCount) },
-      {
-        label: "Selected",
-        value: formatValue(review.data.deltaSummary.selectedDeltaCount),
-      },
-      {
-        label: "Blocked",
-        value: formatValue(review.data.deltaSummary.blockedDeltaCount),
-      },
-      {
-        label: "Connected sets",
-        value: formatValue(review.data.deltaSummary.connectedSetCount),
-      },
+      { label: "Total changes", value: formatValue(review.data.deltaSummary.totalDeltaCount) },
+      { label: "Accepted", value: formatValue(review.data.deltaSummary.selectedDeltaCount) },
+      { label: "Blocked", value: formatValue(review.data.deltaSummary.blockedDeltaCount) },
+      { label: "Linked groups", value: formatValue(review.data.deltaSummary.connectedSetCount) },
     ];
   }, [review.data]);
 
@@ -252,6 +256,7 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
         sourceSnapshotId: result.source_snapshot_id || shellState.sourceSnapshotId,
       });
       setReviewContextCommand({ loading: false, result, error: null });
+      setToast({ message: "Review context generated.", tone: "good" });
     } catch (error) {
       setReviewContextCommand({ loading: false, result: null, error });
     }
@@ -297,6 +302,7 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
           "",
       });
       setActivationCommand({ loading: false, result, error: null });
+      setToast({ message: "Changes activated successfully.", tone: "good" });
       review.reload();
     } catch (error) {
       setActivationCommand({ loading: false, result: null, error });
@@ -315,10 +321,9 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
         review.data?.reviewContextStatus?.reviewContextId ||
         review.data?.queryContext?.reviewContextId ||
         "",
-      warningOriginScopeLabel:
-        review.data?.reviewContextStatus?.reviewContextId
-          ? "Current review context"
-          : "",
+      warningOriginScopeLabel: review.data?.reviewContextStatus?.reviewContextId
+        ? "Current review"
+        : "",
     });
     navigate("/s05");
   }
@@ -343,19 +348,23 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
 
   const returnNavigation = review.data?.navigation?.returnNavigation;
   const returnLabel = returnNavigation?.screen?.id
-    ? `Return to ${returnNavigation.screen.id}`
+    ? `← Back to ${returnNavigation.screen.id}`
     : null;
 
   return (
     <div className="screen-stack">
+      {toast ? (
+        <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />
+      ) : null}
+
       <ScreenHeader
-        eyebrow="S04"
-        title="Delta Review"
-        description="Formal review, acceptance, connected-set handling, and explicit activation over the current review context."
+        eyebrow="Change Review"
+        title="Review & Activate Changes"
+        description="Review the proposed changes from your latest analysis, accept or reject each one, then activate to apply them."
         actions={
           <>
             <button className="secondary-button" onClick={review.reload} type="button">
-              Refresh review
+              Refresh
             </button>
             {returnLabel ? (
               <button className="secondary-button" onClick={handleReturnToOrigin} type="button">
@@ -363,15 +372,15 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
               </button>
             ) : null}
             <button className="secondary-button" onClick={handleWarningReview} type="button">
-              Open S05
+              View Warnings
             </button>
           </>
         }
       />
 
       <SectionCard
-        title="Review context admission"
-        subtitle="Generate or refresh the current review context from the current planning run."
+        title="Step 1: Load Changes"
+        subtitle="Generate or refresh the list of proposed changes from your latest analysis run."
       >
         <div className="command-row">
           <button
@@ -380,19 +389,18 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
             onClick={handleReviewContextGenerate}
             type="button"
           >
-            {reviewContextCommand.loading ? "Generating…" : "Generate / refresh review context"}
+            {reviewContextCommand.loading ? "Loading changes…" : "Load Changes for Review"}
           </button>
         </div>
-        {reviewContextCommand.error ? <ErrorCard error={reviewContextCommand.error} /> : null}
-        {reviewContextCommand.result ? (
-          <div className="command-result">
-            <strong>Review context ready</strong>
-            <p>Review context ID: {formatValue(reviewContextCommand.result.review_context_id)}</p>
-          </div>
+        {!resolvedPlanningRunId ? (
+          <p className="supporting-text" style={{ marginTop: "0.5rem" }}>
+            No analysis run found. Go to Setup to run the capacity analysis first.
+          </p>
         ) : null}
+        {reviewContextCommand.error ? <ErrorCard error={reviewContextCommand.error} /> : null}
       </SectionCard>
 
-      {review.loading ? <LoadingSkeleton label="Loading S04 review state." /> : null}
+      {review.loading ? <LoadingSkeleton label="Loading changes…" /> : null}
       {review.error ? <ErrorCard error={review.error} onRetry={review.reload} /> : null}
       {review.data ? (
         <>
@@ -407,12 +415,8 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
           <MetricGrid items={metrics} />
 
           <div className="split-layout">
-            <SectionCard title="Review context status">
+            <SectionCard title="Review Status">
               <div className="summary-grid">
-                <div className="summary-card">
-                  <span>Review context</span>
-                  <strong>{formatValue(review.data.reviewContextStatus?.reviewContextId)}</strong>
-                </div>
                 <div className="summary-card">
                   <span>Review stage</span>
                   <strong>{formatValue(review.data.acceptanceState?.reviewStage)}</strong>
@@ -424,13 +428,10 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
               </div>
             </SectionCard>
 
-            <SectionCard title="Activation">
-              <div className="summary-card">
-                <span>Status</span>
+            <SectionCard title="Step 2: Activate">
+              <div className="summary-card" style={{ marginBottom: "0.75rem" }}>
+                <span>Activation status</span>
                 <strong>{formatValue(review.data.activation?.status)}</strong>
-                <small>
-                  Workflow: {formatValue(review.data.activation?.downstreamWorkflow?.workflowState)}
-                </small>
               </div>
               <div className="command-row">
                 <button
@@ -439,84 +440,112 @@ export function S04DeltaReviewScreen({ shellState, updateShellState }) {
                   onClick={handleActivation}
                   type="button"
                 >
-                  {activationCommand.loading ? "Activating…" : "Activate accepted changes"}
+                  {activationCommand.loading ? "Activating…" : "Activate Accepted Changes"}
                 </button>
               </div>
-              {activationCommand.error ? <ErrorCard error={activationCommand.error} /> : null}
-              {activationCommand.result ? (
-                <div className="command-result">
-                  <strong>Activation command returned</strong>
-                  <p>
-                    Activation ID:{" "}
-                    {formatValue(
-                      activationCommand.result.activationId ||
-                      activationCommand.result.activationState?.activationId ||
-                        activationCommand.result.activation_state?.activation_id,
-                    )}
-                  </p>
-                </div>
+              {!review.data.activation?.actionAvailable ? (
+                <p className="supporting-text" style={{ marginTop: "0.5rem" }}>
+                  Accept at least one change below before activating.
+                </p>
               ) : null}
+              {activationCommand.error ? <ErrorCard error={activationCommand.error} /> : null}
             </SectionCard>
           </div>
 
           {acceptanceCommand.error ? <ErrorCard error={acceptanceCommand.error} /> : null}
 
-          <SectionCard title="Grouped delta review">
+          <SectionCard
+            title="Proposed Changes"
+            subtitle="Review each proposed change. Accept the ones you want to apply, then click Activate above."
+          >
             <div className="delta-grid">
               {review.data.groupedDeltaReview.length ? (
-                review.data.groupedDeltaReview.map((group) => (
-                  <article className="delta-group" key={group.groupId}>
-                    <div className="delta-header">
-                      <div>
-                        <strong>{group.groupLabel}</strong>
-                        <p className="supporting-text">
-                          {formatCountLabel(group.deltaCount, "delta")} · {formatCountLabel(group.blockedItemCount, "blocked item")}
-                        </p>
+                review.data.groupedDeltaReview.map((group) => {
+                  const isExpanded = expandedGroups[group.groupId] !== false;
+                  const visibleItems = isExpanded ? group.items : group.items.slice(0, 5);
+                  const hiddenCount = group.items.length - visibleItems.length;
+
+                  return (
+                    <article className="delta-group" key={group.groupId}>
+                      <div className="delta-header">
+                        <div>
+                          <strong>{group.groupLabel}</strong>
+                          <p className="supporting-text">
+                            {formatCountLabel(group.deltaCount, "change")}
+                            {group.blockedItemCount > 0 ? ` · ${group.blockedItemCount} blocked` : ""}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="delta-list">
-                      {group.items.map((item) => (
-                        <article className="delta-card" key={item.deltaId}>
-                          <strong>{item.entityName}</strong>
-                          <small>{item.deltaScopeAttributes.join(", ")}</small>
-                          <ul className="plain-list">
-                            {item.attributeChanges.map((change) => (
-                              <li key={`${item.deltaId}-${change.attributeName}`}>
-                                {change.attributeName}: {formatValue(change.beforeValue)} → {formatValue(change.afterValue)}
-                              </li>
-                            ))}
-                          </ul>
-                          <div className="delta-actions">
-                            <button
-                              className="primary-button"
-                              disabled={
-                                !item.acceptanceState.directSelectable ||
-                                acceptanceCommand.loadingDeltaId === item.deltaId
-                              }
-                              onClick={() => handleDeltaSelection(item.deltaId, !item.acceptanceState.selected)}
-                              type="button"
-                            >
-                              {item.acceptanceState.selected ? "Deselect" : "Select"}
-                            </button>
-                            {item.connectedSetEntry?.available ? (
+                      <div className="delta-list">
+                        {visibleItems.map((item) => (
+                          <article className="delta-card" key={item.deltaId}>
+                            <strong>{item.entityName}</strong>
+                            <ul className="plain-list">
+                              {item.attributeChanges.map((change) => (
+                                <li key={`${item.deltaId}-${change.attributeName}`}>
+                                  <strong>{friendlyAttribute(change.attributeName)}:</strong>{" "}
+                                  {formatValue(change.beforeValue)} → {formatValue(change.afterValue)}
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="delta-actions">
                               <button
-                                className="secondary-button"
-                                onClick={() => setModalDeltaId(item.connectedSetEntry.requestedDeltaId)}
+                                className="primary-button"
+                                disabled={
+                                  !item.acceptanceState.directSelectable ||
+                                  acceptanceCommand.loadingDeltaId === item.deltaId
+                                }
+                                onClick={() => handleDeltaSelection(item.deltaId, !item.acceptanceState.selected)}
                                 type="button"
                               >
-                                Open M01
+                                {acceptanceCommand.loadingDeltaId === item.deltaId
+                                  ? "…"
+                                  : item.acceptanceState.selected
+                                    ? "✓ Accepted — Undo"
+                                    : "Accept"}
                               </button>
-                            ) : null}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </article>
-                ))
+                              {item.connectedSetEntry?.available ? (
+                                <button
+                                  className="secondary-button"
+                                  onClick={() => setModalDeltaId(item.connectedSetEntry.requestedDeltaId)}
+                                  type="button"
+                                >
+                                  Related Changes
+                                </button>
+                              ) : null}
+                            </div>
+                          </article>
+                        ))}
+                        {hiddenCount > 0 ? (
+                          <button
+                            className="ghost-button"
+                            onClick={() => setExpandedGroups((s) => ({ ...s, [group.groupId]: true }))}
+                            type="button"
+                          >
+                            Show {hiddenCount} more change{hiddenCount !== 1 ? "s" : ""}…
+                          </button>
+                        ) : null}
+                        {isExpanded && group.items.length > 5 ? (
+                          <button
+                            className="ghost-button"
+                            onClick={() => setExpandedGroups((s) => ({ ...s, [group.groupId]: false }))}
+                            type="button"
+                          >
+                            Collapse
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })
               ) : (
                 <div className="summary-card">
-                  <span>No deltas</span>
-                  <strong>The current review context has no grouped items.</strong>
+                  <span>No changes to review</span>
+                  <strong>
+                    {resolvedReviewContextId
+                      ? "The current review has no proposed changes."
+                      : "Click 'Load Changes for Review' above to get started."}
+                  </strong>
                 </div>
               )}
             </div>

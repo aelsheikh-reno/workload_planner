@@ -92,7 +92,10 @@ class PlanningEngineDiagnosticsFactTests(unittest.TestCase):
         issue_codes = {fact.code for fact in diagnostics.planning_issue_facts}
 
         self.assertIn("draft_partially_schedulable", issue_codes)
-        self.assertIn("draft_unschedulable", issue_codes)
+        # After C6 fix: successors of partially-scheduled predecessors are no
+        # longer blocked. task-follow-on now schedules using foundation's actual
+        # end date, so "draft_unschedulable" is no longer generated.
+        self.assertNotIn("draft_unschedulable", issue_codes)
         self.assertIn("dependency_chain_pressure", issue_codes)
         self.assertIn("criticality_zero_slack", issue_codes)
 

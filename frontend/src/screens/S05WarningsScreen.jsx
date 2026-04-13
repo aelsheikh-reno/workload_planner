@@ -18,6 +18,16 @@ import {
   toneForScreenState,
 } from "../utils";
 
+const CLASSIFICATION_LABELS = {
+  blocking: "⛔ Blocking",
+  advisory: "⚠ Advisory",
+  trust_limited: "ℹ Trust-Limited",
+};
+
+function friendlyClassification(label) {
+  return CLASSIFICATION_LABELS[label] || label;
+}
+
 function toggleFilter(currentValues, value, setter) {
   const next = new Set(currentValues);
   if (next.has(value)) {
@@ -33,6 +43,7 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
   const [workflowFilters, setWorkflowFilters] = useState(null);
   const [classificationFilters, setClassificationFilters] = useState(null);
   const [signalTypeFilters, setSignalTypeFilters] = useState(null);
+
   const warnings = useRouteData("/api/screens/s05/warnings-workspace", {
     query: {
       planningContextKey: shellState.planningContextKey,
@@ -56,6 +67,12 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
   const activeSignalTypes =
     signalTypeFilters ?? warnings.data?.filterState?.activeSignalTypes ?? [];
   const trustGuidance = warnings.data?.trustGuidance ?? [];
+
+  const totalActiveFilters =
+    activeWorkflowIds.length + activeClassificationFilters.length + activeSignalTypes.length;
+
+  const hasCustomFilters =
+    workflowFilters !== null || classificationFilters !== null || signalTypeFilters !== null;
 
   const groupedWarnings = useMemo(() => {
     if (!warnings.data) {
@@ -122,17 +139,17 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
   return (
     <div className="screen-stack">
       <ScreenHeader
-        eyebrow="S05"
-        title="Planning Warnings Workspace"
-        description="Dedicated warning and trust review with workflow return navigation."
+        eyebrow="Warnings"
+        title="Planning Warnings"
+        description="Review all planning warnings and trust signals. Blocking warnings must be resolved before proceeding."
         actions={
           <button className="secondary-button" onClick={warnings.reload} type="button">
-            Refresh warnings
+            Refresh
           </button>
         }
       />
 
-      {warnings.loading ? <LoadingSkeleton label="Loading warnings workspace." /> : null}
+      {warnings.loading ? <LoadingSkeleton label="Loading warnings…" /> : null}
       {warnings.error ? <ErrorCard error={warnings.error} onRetry={warnings.reload} /> : null}
       {warnings.data ? (
         <>
@@ -144,28 +161,30 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
 
           <MetricGrid
             items={[
-              { label: "Visible signals", value: formatValue(warnings.data.workspaceSummary?.filteredSignalCount) },
-              { label: "Blocking warnings", value: formatValue(warnings.data.workspaceSummary?.blockingWarningCount) },
-              { label: "Advisories", value: formatValue(warnings.data.workspaceSummary?.advisoryWarningCount) },
+              { label: "Total warnings", value: formatValue(warnings.data.workspaceSummary?.filteredSignalCount) },
+              { label: "Blocking", value: formatValue(warnings.data.workspaceSummary?.blockingWarningCount) },
+              { label: "Advisory", value: formatValue(warnings.data.workspaceSummary?.advisoryWarningCount) },
               { label: "Trust-limited", value: formatValue(warnings.data.workspaceSummary?.trustLimitedCount) },
             ]}
           />
 
           <SectionCard
-            title="Grouping and filters"
-            subtitle={`Default grouping: ${formatValue(warnings.data.filterState?.groupBy)}`}
+            title="Filter Warnings"
+            subtitle={totalActiveFilters > 0 ? `${totalActiveFilters} filter${totalActiveFilters !== 1 ? "s" : ""} active` : "Showing all warnings"}
             actions={
-              <button className="secondary-button" onClick={clearCustomFilters} type="button">
-                Reset filters
-              </button>
+              hasCustomFilters ? (
+                <button className="secondary-button" onClick={clearCustomFilters} type="button">
+                  Clear All Filters
+                </button>
+              ) : null
             }
           >
             <div className="filter-stack">
-              <div className="filter-group">
-                <strong>Workflow filters</strong>
-                <div className="chip-row">
-                  {warnings.data.filterState?.availableFilters?.workflowOptions?.length ? (
-                    warnings.data.filterState.availableFilters.workflowOptions.map((option) => (
+              {warnings.data.filterState?.availableFilters?.workflowOptions?.length ? (
+                <div className="filter-group">
+                  <strong style={{ fontSize: "0.85rem" }}>By Workflow</strong>
+                  <div className="chip-row">
+                    {warnings.data.filterState.availableFilters.workflowOptions.map((option) => (
                       <button
                         aria-pressed={activeWorkflowIds.includes(option.workflowId)}
                         className="ghost-button chip-button"
@@ -177,18 +196,16 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
                       >
                         {option.workflowLabel} ({option.count})
                       </button>
-                    ))
-                  ) : (
-                    <span className="supporting-text">No workflow filters are available in the current scope.</span>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
-              <div className="filter-group">
-                <strong>Classification filters</strong>
-                <div className="chip-row">
-                  {warnings.data.filterState?.availableFilters?.classificationOptions?.length ? (
-                    warnings.data.filterState.availableFilters.classificationOptions.map((option) => (
+              {warnings.data.filterState?.availableFilters?.classificationOptions?.length ? (
+                <div className="filter-group">
+                  <strong style={{ fontSize: "0.85rem" }}>By Type</strong>
+                  <div className="chip-row">
+                    {warnings.data.filterState.availableFilters.classificationOptions.map((option) => (
                       <button
                         aria-pressed={activeClassificationFilters.includes(option.id)}
                         className="ghost-button chip-button"
@@ -202,20 +219,18 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
                         }
                         type="button"
                       >
-                        {option.label} ({option.count})
+                        {friendlyClassification(option.id)} ({option.count})
                       </button>
-                    ))
-                  ) : (
-                    <span className="supporting-text">No classification filters are available in the current scope.</span>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
-              <div className="filter-group">
-                <strong>Signal type filters</strong>
-                <div className="chip-row">
-                  {warnings.data.filterState?.availableFilters?.signalTypeOptions?.length ? (
-                    warnings.data.filterState.availableFilters.signalTypeOptions.map((option) => (
+              {warnings.data.filterState?.availableFilters?.signalTypeOptions?.length ? (
+                <div className="filter-group">
+                  <strong style={{ fontSize: "0.85rem" }}>By Signal</strong>
+                  <div className="chip-row">
+                    {warnings.data.filterState.availableFilters.signalTypeOptions.map((option) => (
                       <button
                         aria-pressed={activeSignalTypes.includes(option.id)}
                         className="ghost-button chip-button"
@@ -227,42 +242,22 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
                       >
                         {option.label} ({option.count})
                       </button>
-                    ))
-                  ) : (
-                    <span className="supporting-text">No signal-type filters are available in the current scope.</span>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </div>
-          </SectionCard>
+              ) : null}
 
-          <SectionCard
-            title="Affected workflow groups"
-            subtitle={`${formatCountLabel(groupedWarnings.length, "workflow group")}`}
-          >
-            <div className="card-grid">
-              {groupedWarnings.length ? (
-                groupedWarnings.map((group) => (
-                  <article className="summary-card" key={group.summary.workflowId}>
-                    <span>{group.summary.workflowLabel}</span>
-                    <strong>{formatCountLabel(group.summary.itemCount, "warning")}</strong>
-                    <small>
-                      Blocking {group.summary.blockingCount} · Advisory {group.summary.advisoryCount} · Trust-limited {group.summary.trustLimitedCount}
-                    </small>
-                  </article>
-                ))
-              ) : (
-                <div className="summary-card">
-                  <span>No workflow groups</span>
-                  <strong>The current warning scope has no grouped workflows.</strong>
-                </div>
-              )}
+              {!warnings.data.filterState?.availableFilters?.workflowOptions?.length &&
+               !warnings.data.filterState?.availableFilters?.classificationOptions?.length &&
+               !warnings.data.filterState?.availableFilters?.signalTypeOptions?.length ? (
+                <span className="supporting-text">No filters available for the current warning set.</span>
+              ) : null}
             </div>
           </SectionCard>
 
           {trustGuidance.length ? (
             <SectionCard
-              title="Trust guidance"
+              title="Trust Guidance"
               subtitle={`${formatCountLabel(trustGuidance.length, "guidance item")}`}
             >
               <div className="card-grid">
@@ -282,8 +277,8 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
           ) : null}
 
           <SectionCard
-            title="Warning items"
-            subtitle={`${formatCountLabel(warnings.data.warningItems.length, "warning item")}`}
+            title="Warning Details"
+            subtitle={`${formatCountLabel(warnings.data.warningItems.length, "warning")}`}
             actions={
               warnings.data.returnNavigation?.screen ? (
                 <button
@@ -291,7 +286,7 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
                   onClick={handleReturnToWorkflow}
                   type="button"
                 >
-                  Return to {warnings.data.returnNavigation.screen.id}
+                  ← Back to {warnings.data.returnNavigation.screen.id}
                 </button>
               ) : null
             }
@@ -304,7 +299,10 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
                       <div>
                         <strong>{group.summary.workflowLabel}</strong>
                         <p className="supporting-text">
-                          {formatCountLabel(group.summary.itemCount, "warning")} · Blocking {group.summary.blockingCount} · Advisory {group.summary.advisoryCount} · Trust-limited {group.summary.trustLimitedCount}
+                          {formatCountLabel(group.summary.itemCount, "warning")}
+                          {group.summary.blockingCount > 0 ? ` · ${group.summary.blockingCount} blocking` : ""}
+                          {group.summary.advisoryCount > 0 ? ` · ${group.summary.advisoryCount} advisory` : ""}
+                          {group.summary.trustLimitedCount > 0 ? ` · ${group.summary.trustLimitedCount} trust-limited` : ""}
                         </p>
                       </div>
                     </div>
@@ -313,15 +311,16 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
                         <article className="warning-card" key={item.itemId}>
                           <div className="warning-header">
                             <div>
-                              <strong>{item.code}</strong>
-                              <small>{item.classificationLabel}</small>
+                              <strong>{item.message || item.code}</strong>
+                              <small>{friendlyClassification(item.classification) || item.classificationLabel}</small>
                             </div>
                           </div>
-                          <p className="supporting-text">{item.message}</p>
-                          <small>
-                            Workflow: {formatValue(item.affectedWorkflow?.label)} · Scope:{" "}
-                            {formatValue(item.affectedScope?.scopeLabel)}
-                          </small>
+                          {item.message && item.code !== item.message ? (
+                            <p className="supporting-text">{item.code}</p>
+                          ) : null}
+                          {item.affectedScope?.scopeLabel ? (
+                            <small>Scope: {formatValue(item.affectedScope.scopeLabel)}</small>
+                          ) : null}
                         </article>
                       ))}
                     </div>
@@ -329,8 +328,8 @@ export function S05WarningsScreen({ shellState, updateShellState }) {
                 ))
               ) : (
                 <div className="summary-card">
-                  <span>No warnings in scope</span>
-                  <strong>{warnings.data.emptyState?.message || "There are no warning items to review."}</strong>
+                  <span>No warnings</span>
+                  <strong>{warnings.data.emptyState?.message || "No warnings to review in the current scope."}</strong>
                 </div>
               )}
             </div>

@@ -9,19 +9,28 @@ import {
   ScreenHeader,
   ScreenStateCard,
   SectionCard,
+  Toast,
 } from "../components/ScreenPrimitives";
 import { useRouteData } from "../useRouteData";
 import { formatCountLabel, formatValue, messageForScreenState, toneForScreenState } from "../utils";
 
-const INITIAL_IMPORT_PAYLOAD = '{\n  "source_system": "asana"\n}';
+const PLAIN_READINESS_LABEL = {
+  ready: "Ready to plan",
+  ready_with_advisories: "Ready (with advisories)",
+  blocked: "Blocked — resolve issues first",
+  missing: "Not configured",
+};
+
+function plainReadiness(state) {
+  return PLAIN_READINESS_LABEL[state] || formatValue(state);
+}
 
 export function S02SetupScreen({ shellState, updateShellState }) {
   const navigate = useNavigate();
-  const [importDraft, setImportDraft] = useState(INITIAL_IMPORT_PAYLOAD);
-  const [snapshotDraft, setSnapshotDraft] = useState(shellState.sourceSnapshotId);
   const [importCommand, setImportCommand] = useState({ loading: false, result: null, error: null });
   const [planningCommand, setPlanningCommand] = useState({ loading: false, result: null, error: null });
   const [statusCommand, setStatusCommand] = useState({ loading: false, result: null, error: null });
+  const [toast, setToast] = useState(null);
 
   const setup = useRouteData("/api/screens/s02/setup", {
     query: {
@@ -35,13 +44,8 @@ export function S02SetupScreen({ shellState, updateShellState }) {
     const resolvedSnapshotId = setup.data?.queryContext?.sourceSnapshotId;
     if (resolvedSnapshotId && resolvedSnapshotId !== shellState.sourceSnapshotId) {
       updateShellState({ sourceSnapshotId: resolvedSnapshotId });
-      setSnapshotDraft(resolvedSnapshotId);
     }
   }, [setup.data, shellState.sourceSnapshotId, updateShellState]);
-
-  useEffect(() => {
-    setSnapshotDraft(shellState.sourceSnapshotId);
-  }, [shellState.sourceSnapshotId]);
 
   const screenState = setup.data?.viewState?.screenState || "missing";
   const metrics = useMemo(() => {
@@ -50,16 +54,16 @@ export function S02SetupScreen({ shellState, updateShellState }) {
     }
     return [
       {
-        label: "Source readiness",
-        value: formatValue(setup.data.sourceReadiness?.state),
+        label: "Plan source",
+        value: plainReadiness(setup.data.sourceReadiness?.state),
       },
       {
-        label: "Capacity inputs",
-        value: formatValue(setup.data.capacityInputReadiness?.state),
+        label: "Capacity data",
+        value: plainReadiness(setup.data.capacityInputReadiness?.state),
       },
       {
-        label: "Runnable",
-        value: setup.data.overallReadiness?.canContinueToPlanning ? "Yes" : "No",
+        label: "Can plan now",
+        value: setup.data.overallReadiness?.canContinueToPlanning ? "✓ Yes" : "✗ No",
       },
       {
         label: "Advisories",
@@ -68,26 +72,13 @@ export function S02SetupScreen({ shellState, updateShellState }) {
     ];
   }, [setup.data]);
 
-  async function handleImportSyncStart(event) {
-    event.preventDefault();
-    let rawPayload;
-    try {
-      rawPayload = JSON.parse(importDraft);
-    } catch (_error) {
-      setImportCommand({
-        loading: false,
-        result: null,
-        error: { code: "invalid_json", message: "Raw payload must be valid JSON." },
-      });
-      return;
-    }
-
+  async function handleImportSyncStart() {
     setImportCommand({ loading: true, result: null, error: null });
     try {
       const result = await requestJson("/api/screens/s02/import-sync", {
         method: "POST",
         body: {
-          rawPayload,
+          rawPayload: { source_system: "asana" },
           requestedBy: shellState.requestedBy,
           requestedAt: nowIsoString(),
         },
@@ -97,6 +88,7 @@ export function S02SetupScreen({ shellState, updateShellState }) {
         updateShellState({ sourceSnapshotId: result.source_snapshot_id });
       }
       setup.reload();
+      setToast({ message: "Plan imported successfully.", tone: "good" });
     } catch (error) {
       setImportCommand({ loading: false, result: null, error });
     }
@@ -123,6 +115,7 @@ export function S02SetupScreen({ shellState, updateShellState }) {
         planningRunId,
       });
       setPlanningCommand({ loading: false, result, error: null });
+      setToast({ message: "Analysis run started. Refreshing status…", tone: "good" });
     } catch (error) {
       setPlanningCommand({ loading: false, result: null, error });
     }
@@ -159,19 +152,25 @@ export function S02SetupScreen({ shellState, updateShellState }) {
     navigate("/s05");
   }
 
+  const runStatus = statusCommand.result?.status || planningCommand.result?.workflow_instance?.current_status;
+
   return (
     <div className="screen-stack">
+      {toast ? (
+        <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />
+      ) : null}
+
       <ScreenHeader
-        eyebrow="S02"
+        eyebrow="Setup"
         title="Planning Setup"
-        description="Status-first readiness, source intake admission, and planning-run admission through the real BFF transport."
+        description="Configure your plan source and run the capacity analysis before reviewing results."
         actions={
           <>
             <button className="secondary-button" onClick={setup.reload} type="button">
-              Refresh setup
+              Refresh
             </button>
             <button className="secondary-button" onClick={handleWarningReview} type="button">
-              Review warnings
+              View Warnings
             </button>
             <button
               className="primary-button"
@@ -179,13 +178,13 @@ export function S02SetupScreen({ shellState, updateShellState }) {
               onClick={() => navigate("/s01")}
               type="button"
             >
-              Continue to S01
+              Go to Portfolio →
             </button>
           </>
         }
       />
 
-      {setup.loading ? <LoadingSkeleton label="Loading S02 setup readiness." /> : null}
+      {setup.loading ? <LoadingSkeleton label="Loading setup status…" /> : null}
       {setup.error ? <ErrorCard error={setup.error} onRetry={setup.reload} /> : null}
       {setup.data ? (
         <>
@@ -199,63 +198,61 @@ export function S02SetupScreen({ shellState, updateShellState }) {
 
           <div className="split-layout">
             <SectionCard
-              title="Source intake"
-              subtitle="Keep setup status first, with bounded intake actions available only when needed."
+              title="1. Import Plan"
+              subtitle="Load your latest project plan from the source system into the planner."
             >
-              <label className="field">
-                <span>Saved source snapshot ID</span>
-                <input
-                  aria-label="Saved source snapshot ID"
-                  value={snapshotDraft}
-                  onChange={(event) => setSnapshotDraft(event.target.value)}
-                  placeholder="Attach an existing normalized snapshot when one is already known"
-                />
-              </label>
+              <div className="plain-list" style={{ marginBottom: "0.75rem" }}>
+                <p>
+                  Status:{" "}
+                  <strong>
+                    {shellState.sourceSnapshotId ? "✓ Plan available" : "No plan imported yet"}
+                  </strong>
+                </p>
+                {setup.data.latestImport?.sourceSystem ? (
+                  <p>Source: {formatValue(setup.data.latestImport.sourceSystem)}</p>
+                ) : null}
+              </div>
               <div className="command-row">
                 <button
-                  className="secondary-button"
-                  onClick={() => updateShellState({ sourceSnapshotId: snapshotDraft.trim() })}
+                  className="primary-button"
+                  disabled={importCommand.loading}
+                  onClick={handleImportSyncStart}
                   type="button"
                 >
-                  Use saved snapshot
+                  {importCommand.loading ? "Importing…" : "Import Plan"}
                 </button>
               </div>
-              <details className="advanced-toggle">
-                <summary>Start import / sync from a source payload</summary>
-                <form onSubmit={handleImportSyncStart}>
-                  <label className="field">
-                    <span>Source plan payload</span>
-                    <textarea
-                      aria-label="Source plan payload"
-                      value={importDraft}
-                      onChange={(event) => setImportDraft(event.target.value)}
-                    />
-                  </label>
-                  <div className="command-row">
-                    <button className="primary-button" disabled={importCommand.loading} type="submit">
-                      {importCommand.loading ? "Starting import…" : "Start import / sync"}
-                    </button>
-                  </div>
-                </form>
-              </details>
               {importCommand.error ? <ErrorCard error={importCommand.error} /> : null}
-              {importCommand.result ? (
-                <div className="command-result">
-                  <strong>Import/sync admitted</strong>
-                  <p>
-                    Workflow status: {formatValue(importCommand.result.workflow_instance?.current_status)}
-                  </p>
-                  <p>
-                    Snapshot: {formatValue(importCommand.result.source_snapshot_id)}. The current MVP transport exposes admission and handoff; if snapshot completion is not yet available, continue once a saved normalized snapshot becomes available.
-                  </p>
+              {setup.data.sourceSetupIssues.length ? (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <p className="section-label">Issues to resolve</p>
+                  <ul className="plain-list">
+                    {setup.data.sourceSetupIssues.map((issue) => (
+                      <li key={`${issue.code}-${issue.field || "none"}`}>{issue.message}</li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
             </SectionCard>
 
             <SectionCard
-              title="Planning run"
-              subtitle="Run planning when the current setup state is runnable."
+              title="2. Run Capacity Analysis"
+              subtitle="Analyse your team's capacity against the imported plan to identify overloads and conflicts."
             >
+              <div className="plain-list" style={{ marginBottom: "0.75rem" }}>
+                <p>
+                  Status:{" "}
+                  <strong>
+                    {runStatus === "succeeded"
+                      ? "✓ Analysis complete"
+                      : runStatus === "running" || runStatus === "dispatched"
+                        ? "⏳ Running…"
+                        : shellState.planningRunId
+                          ? "✓ Analysis available"
+                          : "Not started"}
+                  </strong>
+                </p>
+              </div>
               <div className="command-row">
                 <button
                   className="primary-button"
@@ -267,7 +264,7 @@ export function S02SetupScreen({ shellState, updateShellState }) {
                   onClick={handlePlanningRunStart}
                   type="button"
                 >
-                  {planningCommand.loading ? "Starting run…" : "Start planning run"}
+                  {planningCommand.loading ? "Starting…" : "Run Analysis"}
                 </button>
                 <button
                   className="secondary-button"
@@ -278,93 +275,41 @@ export function S02SetupScreen({ shellState, updateShellState }) {
                   onClick={handlePlanningStatusRefresh}
                   type="button"
                 >
-                  {statusCommand.loading ? "Refreshing status…" : "Refresh run status"}
+                  {statusCommand.loading ? "Checking…" : "Check Status"}
                 </button>
               </div>
-              <div className="plain-list">
-                <p>Current source snapshot: {formatValue(shellState.sourceSnapshotId)}</p>
-                <p>Current planning run: {formatValue(shellState.planningRunId)}</p>
-              </div>
               {planningCommand.error ? <ErrorCard error={planningCommand.error} /> : null}
-              {planningCommand.result ? (
-                <div className="command-result">
-                  <strong>Planning run admitted</strong>
-                  <p>
-                    Workflow: {formatValue(planningCommand.result.workflow_instance?.workflow_instance_id)}
-                  </p>
-                  <p>
-                    Planning run ID:{" "}
-                    {formatValue(
-                      planningCommand.result.workflow_instance?.planning_engine_run_id ||
-                        planningCommand.result.workflow_instance?.planning_run_id,
-                    )}
-                  </p>
-                </div>
-              ) : null}
               {statusCommand.error ? <ErrorCard error={statusCommand.error} /> : null}
-              {statusCommand.result ? (
-                <div className="command-result">
-                  <strong>Latest planning run status</strong>
-                  <p>Status: {formatValue(statusCommand.result.status)}</p>
-                  <p>
-                    Planning run ID:{" "}
-                    {formatValue(
-                      statusCommand.result.planning_engine_run_id ||
-                        statusCommand.result.planning_run_id,
-                    )}
-                  </p>
+              {setup.data.capacityInputIssues.length ? (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <p className="section-label">Capacity issues</p>
+                  <ul className="plain-list">
+                    {setup.data.capacityInputIssues.map((issue) => (
+                      <li key={`${issue.code}-${issue.field || "none"}`}>{issue.message}</li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
             </SectionCard>
           </div>
 
-          <SectionCard
-            title="Readiness detail"
-            subtitle="Current blockers, advisories, and import metadata from the BFF-composed setup view."
-          >
-            <div className="summary-grid">
-              <div className="summary-card">
-                <span>Latest import</span>
-                <strong>{formatValue(setup.data.latestImport?.snapshotId)}</strong>
-                <small>{formatValue(setup.data.latestImport?.sourceSystem)}</small>
+          {(setup.data.noRunnablePlanBlockers.length > 0 || setup.data.advisorySignals.length > 0) ? (
+            <SectionCard
+              title="Readiness Details"
+              subtitle="Issues that may affect whether the analysis can run."
+            >
+              <div className="summary-grid">
+                <div className="summary-card">
+                  <span>Blockers</span>
+                  <strong>{formatCountLabel(setup.data.noRunnablePlanBlockers.length, "blocker")}</strong>
+                </div>
+                <div className="summary-card">
+                  <span>Advisories</span>
+                  <strong>{formatCountLabel(setup.data.advisorySignals.length, "advisory")}</strong>
+                </div>
               </div>
-              <div className="summary-card">
-                <span>No-runnable blockers</span>
-                <strong>{formatCountLabel(setup.data.noRunnablePlanBlockers.length, "blocker")}</strong>
-              </div>
-              <div className="summary-card">
-                <span>Advisory signals</span>
-                <strong>{formatCountLabel(setup.data.advisorySignals.length, "signal")}</strong>
-              </div>
-            </div>
-
-            <div className="card-grid">
-              <div className="summary-card">
-                <span>Source setup issues</span>
-                <ul className="plain-list">
-                  {setup.data.sourceSetupIssues.length ? (
-                    setup.data.sourceSetupIssues.map((issue) => (
-                      <li key={`${issue.code}-${issue.field || "none"}`}>{issue.message}</li>
-                    ))
-                  ) : (
-                    <li>No source setup issues in the current scope.</li>
-                  )}
-                </ul>
-              </div>
-              <div className="summary-card">
-                <span>Capacity input issues</span>
-                <ul className="plain-list">
-                  {setup.data.capacityInputIssues.length ? (
-                    setup.data.capacityInputIssues.map((issue) => (
-                      <li key={`${issue.code}-${issue.field || "none"}`}>{issue.message}</li>
-                    ))
-                  ) : (
-                    <li>No capacity input issues in the current scope.</li>
-                  )}
-                </ul>
-              </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
+          ) : null}
         </>
       ) : null}
     </div>

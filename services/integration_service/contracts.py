@@ -95,6 +95,7 @@ class NormalizedDependencyRecord:
     successor_task_id: str
     predecessor_external_task_id: str
     successor_external_task_id: str
+    dependency_type: str = "FS"  # FS | FF | SS | SF
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

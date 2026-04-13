@@ -32,10 +32,14 @@ export function buildApiUrl(path, query = {}) {
   return url.toString();
 }
 
-export async function requestJson(path, { method = "GET", query, body, signal } = {}) {
+export async function requestJson(path, { method = "GET", query, body, signal, token } = {}) {
+  const storedToken = token || localStorage.getItem("float_token");
+  const headers = {};
+  if (body) headers["Content-Type"] = "application/json";
+  if (storedToken) headers["Authorization"] = `Bearer ${storedToken}`;
   const response = await fetch(buildApiUrl(path, query), {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers: Object.keys(headers).length ? headers : undefined,
     body: body ? JSON.stringify(body) : undefined,
     signal,
   });
@@ -46,8 +50,11 @@ export async function requestJson(path, { method = "GET", query, body, signal } 
 
   if (!response.ok) {
     const error = payload?.error || {};
-    throw new ApiError(error.message || "Request failed.", {
-      code: error.code || "request_failed",
+    // error may be a string (e.g. "Authentication required.") or an object {message, code}
+    const errorMessage = typeof error === "string" ? error : (error.message || "Request failed.");
+    const errorCode = typeof error === "string" ? "request_failed" : (error.code || "request_failed");
+    throw new ApiError(errorMessage, {
+      code: errorCode,
       status: response.status,
       payload,
     });

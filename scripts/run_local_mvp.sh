@@ -102,7 +102,7 @@ fi
 echo "Starting seeded API Gateway / BFF runtime..."
 (
   cd "${ROOT_DIR}"
-  python3 -m services.api_gateway_bff.server --runtime local-demo --host "${BFF_HOST}" --port "${BFF_PORT}"
+  python3 -m services.api_gateway_bff.server --runtime float --host "${BFF_HOST}" --port "${BFF_PORT}"
 ) &
 BFF_PID=$!
 

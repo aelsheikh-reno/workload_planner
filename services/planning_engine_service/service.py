@@ -1,8 +1,9 @@
 """Planning Engine baseline for capacity modeling and draft scheduling."""
 
 import hashlib
+import math
 from datetime import date, timedelta
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from services.integration_service import (
     NormalizedDependencyRecord,
@@ -209,15 +210,28 @@ def _build_capacity_model(bundle: NormalizedSourceBundle) -> CapacityModelResult
         )
 
     resources_by_id = {resource.resource_id: resource for resource in bundle.resources}
-    exceptions_by_resource_date = {
-        (exception.resource_id, exception.date): exception
-        for exception in bundle.resource_exceptions
-    }
+    # Build exception lookup, keeping the MOST restrictive (lowest capacity)
+    # when multiple exceptions exist for the same (resource, date). This ensures
+    # time-off (0h) is not overwritten by cross-project deductions (positive hours).
+    exceptions_by_resource_date: Dict[Tuple[str, str], NormalizedResourceExceptionRecord] = {}
+    for exception in bundle.resource_exceptions:
+        key = (exception.resource_id, exception.date)
+        existing = exceptions_by_resource_date.get(key)
+        if existing is None or exception.available_capacity_hours < existing.available_capacity_hours:
+            exceptions_by_resource_date[key] = exception
     assignments_by_resource: Dict[str, List[NormalizedResourceAssignmentRecord]] = {}
     for assignment in bundle.resource_assignments:
         assignments_by_resource.setdefault(assignment.resource_id, []).append(assignment)
 
     tasks_by_id = {task.task_id: task for task in bundle.tasks}
+
+    # Compute a global task window as fallback for resources with no assignments
+    global_starts = [t.start_date for t in bundle.tasks if t.start_date]
+    global_ends = [t.due_date for t in bundle.tasks if t.due_date]
+    global_task_window: Optional[Tuple[str, str]] = None
+    if global_starts and global_ends:
+        global_task_window = (min(global_starts), max(global_ends))
+
     candidate_resource_ids = sorted(
         set(assignments_by_resource.keys()) | set(resources_by_id.keys())
     )
@@ -247,6 +261,16 @@ def _build_capacity_model(bundle: NormalizedSourceBundle) -> CapacityModelResult
             continue
 
         task_window = _derive_resource_window(assignments=assignments, tasks_by_id=tasks_by_id)
+        if task_window is None:
+            # Fallback to global task window so unassigned resources still get capacity
+            task_window = global_task_window
+        elif global_task_window is not None:
+            # Always extend to cover the global window so predecessors pulling
+            # successors forward can find capacity on earlier dates
+            task_window = (
+                min(task_window[0], global_task_window[0]),
+                max(task_window[1], global_task_window[1]),
+            )
         if task_window is None:
             resource_summaries.append(
                 ResourceCapacitySummary(
@@ -348,16 +372,37 @@ def _build_draft_schedule(
     allocation_outputs: List[TaskAllocationOutput] = []
     schedule_issues: List[DraftScheduleIssue] = []
 
-    task_order = _topologically_order_tasks(bundle.tasks, bundle.dependencies)
+    task_order, cycle_task_ids = _topologically_order_tasks(bundle.tasks, bundle.dependencies)
     tasks_by_id = {task.task_id: task for task in bundle.tasks}
+
+    # Report dependency cycles as schedule issues
+    if cycle_task_ids:
+        for task_id in sorted(cycle_task_ids):
+            task = tasks_by_id.get(task_id)
+            schedule_issues.append(
+                _build_schedule_issue(
+                    planning_run_id=planning_run_id,
+                    source_snapshot_id=bundle.snapshot.snapshot_id,
+                    code="dependency_cycle",
+                    message="Task is part of a dependency cycle. Scheduling order is unpredictable.",
+                    task_external_id=task.external_task_id if task else None,
+                    field="dependencies",
+                )
+            )
+
     assignments_by_task: Dict[str, List[NormalizedResourceAssignmentRecord]] = {}
     for assignment in bundle.resource_assignments:
         assignments_by_task.setdefault(assignment.task_id, []).append(assignment)
 
     predecessors_by_task: Dict[str, List[str]] = {task.task_id: [] for task in bundle.tasks}
+    # Maps (predecessor_task_id, successor_task_id) → dependency_type ("FS"|"FF"|...)
+    dep_type_lookup: Dict[tuple, str] = {}
     for dependency in bundle.dependencies:
         predecessors_by_task.setdefault(dependency.successor_task_id, []).append(
             dependency.predecessor_task_id
+        )
+        dep_type_lookup[(dependency.predecessor_task_id, dependency.successor_task_id)] = (
+            getattr(dependency, "dependency_type", "FS") or "FS"
         )
     for task_id, predecessor_ids in predecessors_by_task.items():
         predecessor_ids.sort()
@@ -424,6 +469,25 @@ def _build_draft_schedule(
             for predecessor_id in predecessor_task_ids
         ]
 
+        # Task with zero remaining effort is already fully allocated (e.g. manual)
+        # Mark it as scheduled so dependent tasks can proceed.
+        if task.effort_hours is not None and task.effort_hours <= 0:
+            task_schedule = _build_task_schedule(
+                planning_run_id=planning_run_id,
+                draft_schedule_id=draft_schedule_id,
+                source_snapshot_id=bundle.snapshot.snapshot_id,
+                task=task,
+                assigned_resource_ids=[assignment.resource_id for assignment in assignments],
+                predecessor_task_ids=predecessor_task_ids,
+                status=TASK_SCHEDULE_STATUS_SCHEDULED,
+                scheduled_start_date=task.start_date,
+                scheduled_end_date=task.due_date,
+                scheduled_effort_hours=0.0,
+            )
+            task_schedules.append(task_schedule)
+            task_schedule_index[task.task_id] = task_schedule
+            continue
+
         if task.effort_hours is None:
             task_schedule = _build_task_schedule(
                 planning_run_id=planning_run_id,
@@ -470,8 +534,8 @@ def _build_draft_schedule(
                 _build_schedule_issue(
                     planning_run_id=planning_run_id,
                     source_snapshot_id=bundle.snapshot.snapshot_id,
-                    code="missing_schedule_window",
-                    message="Draft scheduling requires both start and due dates.",
+                    code="missing_dates",
+                    message="Task requires start and end dates before scheduling. Please set dates manually.",
                     task_external_id=task.external_task_id,
                     field="tasks[].dates",
                 )
@@ -505,11 +569,15 @@ def _build_draft_schedule(
             )
             continue
 
-        if any(
+        # Block only if a predecessor is fully UNSCHEDULABLE (0 allocations, no dates).
+        # Partially-scheduled predecessors have meaningful scheduled_end_date values
+        # that successors can anchor on, so they should not block.
+        has_unschedulable_predecessor = any(
             predecessor_schedule is None
-            or predecessor_schedule.status != TASK_SCHEDULE_STATUS_SCHEDULED
+            or predecessor_schedule.status == TASK_SCHEDULE_STATUS_UNSCHEDULABLE
             for predecessor_schedule in predecessor_schedules
-        ):
+        )
+        if has_unschedulable_predecessor:
             task_schedule = _build_task_schedule(
                 planning_run_id=planning_run_id,
                 draft_schedule_id=draft_schedule_id,
@@ -537,16 +605,39 @@ def _build_draft_schedule(
             continue
 
         earliest_start = task.start_date
-        if predecessor_schedules:
-            predecessor_finish = max(
-                predecessor_schedule.scheduled_end_date
-                for predecessor_schedule in predecessor_schedules
-                if predecessor_schedule is not None
-                and predecessor_schedule.scheduled_end_date is not None
-            )
-            earliest_start = max(earliest_start, _next_date(predecessor_finish))
+        # FF constraint: the task must not finish before its FF predecessor finishes.
+        # We extend the effective due_date window so the task can run into/past the predecessor finish.
+        effective_due_date = task.due_date
 
-        if earliest_start > task.due_date:
+        if predecessor_schedules:
+            # When a task has predecessors, allow it to pull forward:
+            # use the dependency-derived start instead of the task's original start_date
+            # so that if predecessors finish early, successors shift forward too.
+            dep_derived_start = None
+            for pred_id, pred_sched in zip(predecessor_task_ids, predecessor_schedules):
+                if pred_sched is None or pred_sched.scheduled_end_date is None:
+                    continue
+                dep_type = dep_type_lookup.get((pred_id, task.task_id), "FS")
+                if dep_type == "FF":
+                    if pred_sched.scheduled_end_date > effective_due_date:
+                        effective_due_date = pred_sched.scheduled_end_date
+                elif dep_type == "SS":
+                    if pred_sched.scheduled_start_date:
+                        candidate = pred_sched.scheduled_start_date
+                        dep_derived_start = max(dep_derived_start, candidate) if dep_derived_start else candidate
+                elif dep_type == "SF":
+                    if pred_sched.scheduled_start_date:
+                        if pred_sched.scheduled_start_date > effective_due_date:
+                            effective_due_date = pred_sched.scheduled_start_date
+                else:
+                    # FS (default): successor starts after predecessor finishes.
+                    candidate = _next_date(pred_sched.scheduled_end_date)
+                    dep_derived_start = max(dep_derived_start, candidate) if dep_derived_start else candidate
+            if dep_derived_start is not None:
+                # Use the dependency-derived start — allows pulling forward
+                earliest_start = dep_derived_start
+
+        if earliest_start > effective_due_date:
             task_schedule = _build_task_schedule(
                 planning_run_id=planning_run_id,
                 draft_schedule_id=draft_schedule_id,
@@ -584,7 +675,7 @@ def _build_draft_schedule(
                 assignment=assignment,
                 share_hours=share_hours,
                 earliest_start=earliest_start,
-                due_date=task.due_date,
+                due_date=effective_due_date,  # FF may extend this past task.due_date
                 remaining_capacity=remaining_capacity,
             )
             task_allocations.extend(assignment_allocations)
@@ -688,7 +779,8 @@ def _build_planning_diagnostics(
     for task_id in direct_successors:
         direct_successors[task_id].sort()
 
-    ordered_task_ids = [task.task_id for task in _topologically_order_tasks(bundle.tasks, bundle.dependencies)]
+    ordered_tasks_list, _ = _topologically_order_tasks(bundle.tasks, bundle.dependencies)
+    ordered_task_ids = [task.task_id for task in ordered_tasks_list]
     dependency_depths = _build_dependency_depths(
         ordered_task_ids=ordered_task_ids,
         direct_predecessors=direct_predecessors,
@@ -906,13 +998,12 @@ def _build_daily_capacity_output(
     active_assignment_count: int,
     resource_exception: Optional[NormalizedResourceExceptionRecord],
 ) -> DailyCapacityOutput:
-    working_day = _day_name(current_date) in set(resource.working_days)
+    normalized_wd = {d[:3].capitalize() for d in resource.working_days}
+    working_day = _day_name(current_date) in normalized_wd
     calendar_capacity_hours = (
         resource.default_daily_capacity_hours if working_day else 0.0
     )
-    productive_capacity_hours = round(
-        calendar_capacity_hours * resource.availability_ratio, 4
-    )
+    productive_capacity_hours = round(calendar_capacity_hours * resource.availability_ratio, 4)
     exception_reason = None
     if resource_exception is not None:
         productive_capacity_hours = resource_exception.available_capacity_hours
@@ -939,7 +1030,14 @@ def _build_daily_capacity_output(
 def _topologically_order_tasks(
     tasks: List[NormalizedTaskRecord],
     dependencies: List[NormalizedDependencyRecord],
-) -> List[NormalizedTaskRecord]:
+) -> Tuple[List[NormalizedTaskRecord], Set[str]]:
+    """Returns (ordered_tasks, cycle_task_ids).
+
+    cycle_task_ids is empty when no cycles exist. When a cycle is detected,
+    the participating tasks are still appended to the ordered list (so the
+    engine can attempt scheduling) but their IDs are returned so callers
+    can report the issue.
+    """
     tasks_by_id = {task.task_id: task for task in tasks}
     indegree = {task.task_id: 0 for task in tasks}
     successors: Dict[str, List[str]] = {task.task_id: [] for task in tasks}
@@ -968,14 +1066,16 @@ def _topologically_order_tasks(
                 available.append(tasks_by_id[successor_id])
                 available.sort(key=_task_sort_key)
 
+    cycle_task_ids: Set[str] = set()
     if len(ordered_tasks) != len(tasks):
         seen_ids = {task.task_id for task in ordered_tasks}
         remaining = sorted(
             [task for task in tasks if task.task_id not in seen_ids],
             key=_task_sort_key,
         )
+        cycle_task_ids = {task.task_id for task in remaining}
         ordered_tasks.extend(remaining)
-    return ordered_tasks
+    return ordered_tasks, cycle_task_ids
 
 
 def _build_assignment_shares(
@@ -1022,17 +1122,28 @@ def _schedule_assignment_share(
 ) -> Tuple[List[TaskAllocationOutput], float]:
     allocations: List[TaskAllocationOutput] = []
     remaining_share_hours = round(share_hours, 4)
+    cumulative_allocated = 0.0
     for current_date in _date_range(earliest_start, due_date):
         available_capacity = remaining_capacity.get((assignment.resource_id, current_date), 0.0)
         if available_capacity <= 0:
             continue
-        allocated_hours = round(min(available_capacity, remaining_share_hours), 4)
+        raw_hours = min(available_capacity, remaining_share_hours)
+        # Round up to nearest 0.5h so allocations are always clean increments
+        allocated_hours = math.ceil(raw_hours * 2) / 2
+        # Cap so cumulative total never exceeds share_hours (SCHEDULING_SPEC 2.6 step 6)
+        max_remaining_display = round(share_hours - cumulative_allocated, 4)
+        if allocated_hours > max_remaining_display:
+            allocated_hours = max_remaining_display
         if allocated_hours <= 0:
             continue
+        cumulative_allocated = round(cumulative_allocated + allocated_hours, 4)
+        # Don't consume more than what's available
+        actual_consumed = min(allocated_hours, available_capacity)
         remaining_capacity[(assignment.resource_id, current_date)] = round(
-            available_capacity - allocated_hours, 4
+            available_capacity - actual_consumed, 4
         )
-        remaining_share_hours = round(remaining_share_hours - allocated_hours, 4)
+        # Deduct the actual effort (unrounded) to avoid phantom hours
+        remaining_share_hours = round(remaining_share_hours - raw_hours, 4)
         allocations.append(
             TaskAllocationOutput(
                 allocation_id=_stable_id(
@@ -1462,7 +1573,8 @@ def _next_date(value: str) -> str:
 
 
 def _day_name(value: str) -> str:
-    return date.fromisoformat(value).strftime("%A").lower()
+    # Returns 3-letter abbreviated day name matching working_days format: "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
+    return date.fromisoformat(value).strftime("%a")
 
 
 def _stable_id(prefix: str, *parts: str) -> str:

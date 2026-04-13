@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { nowIsoString, requestJson } from "../api";
+import { Toast } from "../components/ScreenPrimitives";
 import {
   ErrorCard,
   LoadingSkeleton,
@@ -16,6 +17,8 @@ import { formatCountLabel, formatValue, messageForScreenState, toneForScreenStat
 export function S03ResourceDetailScreen({ shellState, updateShellState }) {
   const navigate = useNavigate();
   const [refreshResult, setRefreshResult] = useState({ loading: false, result: null, error: null });
+  const [toast, setToast] = useState(null);
+
   const detail = useRouteData("/api/screens/s03/resource-detail", {
     query: {
       planningRunId: shellState.planningRunId,
@@ -33,10 +36,10 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
     }
     const summary = detail.data.resourceSummary;
     return [
-      { label: "Utilization ratio", value: formatValue(summary.utilizationRatio) },
+      { label: "Utilization", value: formatValue(summary.utilizationRatio) },
       { label: "Scheduled tasks", value: formatValue(summary.scheduledTaskCount) },
       { label: "Overloaded days", value: formatValue(summary.overloadedDayCount) },
-      { label: "Warning signals", value: formatValue(summary.warningSignalCount) },
+      { label: "Active warnings", value: formatValue(summary.warningSignalCount) },
     ];
   }, [detail.data]);
 
@@ -51,6 +54,7 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
         },
       });
       setRefreshResult({ loading: false, result, error: null });
+      setToast({ message: "Recommendations refreshed.", tone: "good" });
       detail.reload();
     } catch (error) {
       setRefreshResult({ loading: false, result: null, error });
@@ -85,26 +89,40 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
     navigate("/s04");
   }
 
+  const resourceName = detail.data?.resourceSummary?.resourceDisplayName;
+
   return (
     <div className="screen-stack">
+      {toast ? (
+        <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />
+      ) : null}
+
       <ScreenHeader
-        eyebrow="S03"
-        title="Resource Detail"
-        description="Single-resource diagnosis with timeline, queue, warnings, and recommendation consumption."
+        eyebrow="Resource Detail"
+        title={resourceName || "Resource Detail"}
+        description="Detailed workload, task queue, warnings, and recommendations for this team member."
         actions={
           <>
             <button className="secondary-button" onClick={detail.reload} type="button">
-              Refresh detail
+              Refresh
             </button>
             <button className="secondary-button" onClick={() => navigate("/s01")} type="button">
-              Back to S01
+              ← Portfolio
             </button>
           </>
         }
       />
 
-      {detail.loading ? <LoadingSkeleton label="Loading resource detail." /> : null}
+      {detail.loading ? <LoadingSkeleton label="Loading resource detail…" /> : null}
       {detail.error ? <ErrorCard error={detail.error} onRetry={detail.reload} /> : null}
+
+      {!shellState.resourceExternalId && !detail.loading && !detail.error ? (
+        <div className="state-card state-card--muted">
+          <strong>No resource selected</strong>
+          <p>Go to the Portfolio view and click a team member's name to open their detail here.</p>
+        </div>
+      ) : null}
+
       {detail.data ? (
         <>
           <ScreenStateCard
@@ -115,26 +133,28 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
           <MetricGrid items={metrics} />
 
           <SectionCard
-            title={detail.data.resourceSummary?.resourceDisplayName || "No resource selected"}
-            subtitle={detail.data.resourceSummary?.resourceExternalId || "Attach a resource external ID in the shared shell state or via S01."}
+            title={resourceName || "Resource"}
+            subtitle={detail.data.resourceSummary?.resourceExternalId || ""}
             actions={
-              <button
-                className="secondary-button"
-                disabled={!shellState.planningRunId || !shellState.resourceExternalId || refreshResult.loading}
-                onClick={handleRecommendationRefresh}
-                type="button"
-              >
-                {refreshResult.loading ? "Refreshing recommendations…" : "Refresh recommendation context"}
-              </button>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button
+                  className="secondary-button"
+                  disabled={!shellState.planningRunId || !shellState.resourceExternalId || refreshResult.loading}
+                  onClick={handleRecommendationRefresh}
+                  type="button"
+                >
+                  {refreshResult.loading ? "Refreshing…" : "Refresh Recommendations"}
+                </button>
+                <button className="secondary-button" onClick={handleOpenWarnings} type="button">
+                  View Warnings
+                </button>
+                <button className="secondary-button" onClick={handleOpenReview} type="button">
+                  Review Changes
+                </button>
+              </div>
             }
           >
             {refreshResult.error ? <ErrorCard error={refreshResult.error} /> : null}
-            {refreshResult.result ? (
-              <div className="command-result">
-                <strong>Recommendation context refreshed</strong>
-                <p>Context ID: {formatValue(refreshResult.result.context_id || refreshResult.result.contextId)}</p>
-              </div>
-            ) : null}
             <div className="summary-grid">
               <div className="summary-card">
                 <span>Allocated hours</span>
@@ -149,18 +169,16 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
                 <strong>{formatValue(detail.data.resourceSummary?.riskIndicatorCount)}</strong>
               </div>
               <div className="summary-card">
-                <span>Selected swimlane window</span>
+                <span>Selected date</span>
                 <strong>
-                  {formatValue(
-                    shellState.selectedDate || shellState.selectedWeekStartDate,
-                  )}
+                  {formatValue(shellState.selectedDate || shellState.selectedWeekStartDate)}
                 </strong>
               </div>
             </div>
           </SectionCard>
 
           <div className="split-layout">
-            <SectionCard title="Workload timeline">
+            <SectionCard title="Daily Workload Timeline">
               <div className="timeline-table">
                 {detail.data.workloadTimeline.length ? (
                   detail.data.workloadTimeline.map((segment) => (
@@ -173,14 +191,14 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
                   ))
                 ) : (
                   <div className="summary-card">
-                    <span>No timeline rows</span>
-                    <strong>The current resource context does not expose workload rows.</strong>
+                    <span>No timeline data</span>
+                    <strong>No workload data available for this resource.</strong>
                   </div>
                 )}
               </div>
             </SectionCard>
 
-            <SectionCard title="Assigned work / queue">
+            <SectionCard title="Assigned Tasks">
               <div className="queue-list">
                 {detail.data.assignedWorkQueue.length ? (
                   detail.data.assignedWorkQueue.map((item) => (
@@ -188,14 +206,14 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
                       <strong>{item.taskName}</strong>
                       <small>{item.status}</small>
                       <p>
-                        Scheduled: {formatValue(item.scheduledStartDate)} → {formatValue(item.scheduledEndDate)}
+                        {formatValue(item.scheduledStartDate)} → {formatValue(item.scheduledEndDate)}
                       </p>
                     </article>
                   ))
                 ) : (
                   <div className="summary-card">
-                    <span>No queued work</span>
-                    <strong>No assigned work is visible for the current resource.</strong>
+                    <span>No assigned tasks</span>
+                    <strong>No tasks are assigned to this resource.</strong>
                   </div>
                 )}
               </div>
@@ -204,41 +222,31 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
 
           <div className="split-layout">
             <SectionCard
-              title="Recommendation context"
-              subtitle={`${formatValue(detail.data.recommendationContext?.state)} · ${formatCountLabel(detail.data.recommendationContext?.totalRecommendationCount ?? 0, "candidate")}`}
-              actions={
-                <button className="secondary-button" onClick={handleOpenReview} type="button">
-                  Go to S04
-                </button>
-              }
+              title="Recommendations"
+              subtitle={`${formatCountLabel(detail.data.recommendationContext?.totalRecommendationCount ?? 0, "suggestion")}`}
             >
               <div className="card-grid">
                 {detail.data.recommendationContext?.items?.length ? (
                   detail.data.recommendationContext.items.map((item) => (
                     <article className="recommendation-card" key={item.recommendationId || item.recommendation_id}>
-                      <strong>{item.actionFamily || item.action_family || "Recommendation candidate"}</strong>
+                      <strong>{item.actionFamily || item.action_family || "Recommendation"}</strong>
                       <p className="supporting-text">
-                        {item.effectSummary || item.effect_summary || "No effect summary published."}
+                        {item.effectSummary || item.effect_summary || "No summary available."}
                       </p>
                     </article>
                   ))
                 ) : (
                   <div className="summary-card">
-                    <span>No recommendation items</span>
-                    <strong>The current published context has no actionable candidates.</strong>
+                    <span>No recommendations</span>
+                    <strong>No actionable suggestions at this time.</strong>
                   </div>
                 )}
               </div>
             </SectionCard>
 
             <SectionCard
-              title="Warning / trust context"
-              subtitle={`${formatCountLabel(detail.data.warningTrustContext?.activeSignalCount ?? 0, "signal")}`}
-              actions={
-                <button className="secondary-button" onClick={handleOpenWarnings} type="button">
-                  Open S05
-                </button>
-              }
+              title="Active Warnings"
+              subtitle={`${formatCountLabel(detail.data.warningTrustContext?.activeSignalCount ?? 0, "warning")}`}
             >
               <ul className="warning-list">
                 {detail.data.warningTrustContext?.items?.length ? (
@@ -248,7 +256,7 @@ export function S03ResourceDetailScreen({ shellState, updateShellState }) {
                     </li>
                   ))
                 ) : (
-                  <li>No warning or trust-limited signals are active for this resource.</li>
+                  <li>No active warnings for this resource.</li>
                 )}
               </ul>
             </SectionCard>
